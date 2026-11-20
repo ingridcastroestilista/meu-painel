@@ -269,7 +269,7 @@ function blocoIdeiaDoDia() {
   const gravar = c.tipo === 'gravar';
   return `<div class="linha-hoje ideia-dia" style="align-items:flex-start"><span class="rot" style="padding-top:4px">${gravar ? 'Para gravar' : 'Ideia do dia'}</span>
     <div class="espaco"><p class="frase-ideia">${esc(f.frase)}</p><span class="muted" style="font-size:13.5px">${esc(f.extra)}</span>
-    <div class="linha" style="margin-top:10px"><button class="btn btn-pequeno" data-acao="ideiaFazer">${gravar ? 'Vou gravar' : 'Vou fazer'}</button><button class="btn btn-2 btn-pequeno" data-acao="ideiaOutra">Outra</button><button class="btn-3" data-acao="ideiaHojeNao">Hoje não</button></div></div></div>`;
+    <div class="linha" style="margin-top:10px"><button class="btn btn-pequeno" data-acao="ideiaFazer">${gravar ? 'Vou gravar' : 'Vou fazer'}</button>${c.postId ? `<button class="btn btn-2 btn-pequeno" data-acao="irPost" data-id="${c.postId}">${gravar ? 'Ver roteiro' : 'Ver ideia'}</button>` : ''}<button class="btn btn-2 btn-pequeno" data-acao="ideiaOutra">Outra</button><button class="btn-3" data-acao="ideiaHojeNao">Hoje não</button></div></div></div>`;
 }
 
 // ======================================================================
