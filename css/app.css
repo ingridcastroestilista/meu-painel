@@ -192,6 +192,7 @@ textarea.campo { width: 100%; min-height: 90px; resize: vertical; line-height: 1
 .livro-card { display: flex; gap: 16px; }
 .capa { width: 84px; height: 124px; border-radius: 6px; flex: none; object-fit: cover; background: var(--verde-claro); display: grid; place-items: center; text-align: center; padding: 8px; font-family: var(--serif); font-size: 12px; line-height: 1.25; color: var(--texto); overflow: hidden; box-shadow: 0 2px 8px rgba(69,63,60,.12); cursor: pointer; }
 .capa.grande { width: 140px; height: 206px; font-size: 15px; }
+img.capa { padding: 0; } /* foto da capa sem margem; o espaço interno é só para o nome quando não há foto */
 .barra { height: 8px; background: #D3D9C8; border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
 .barra > i { display: block; height: 100%; background: var(--verde-2); border-radius: 99px; }
 .trecho { padding: 10px 14px; border-left: 3px solid var(--terracota); background: var(--branco); border-radius: 0 10px 10px 0; margin-bottom: 8px; }
