@@ -689,7 +689,7 @@ const moldePorId = (id) => MOLDES.find((m) => m.id === id);
 function caixaMolde(m, aberto = true) {
   if (!m) return '<section class="cartao"><h2>Molde</h2><p class="vazio">Sem molde escolhido. <a href="#" data-acao="estudioPasso" data-passo="molde">Escolher</a></p></section>';
   return `<section class="cartao molde-lado"><h2>Molde</h2>
-    <div class="molde-quem">${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="">` : ''}<div><b>${esc(m.criador)}</b><small>${esc(m.formato)}</small></div></div>
+    <div class="molde-quem">${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="" onerror="this.remove()">` : ''}<div><b>${esc(m.criador)}</b><small>${esc(m.formato)}</small></div></div>
     <details ${aberto ? 'open' : ''}><summary>Ver o esqueleto</summary><pre class="molde-texto">${esc(m.molde)}</pre></details></section>`;
 }
 function telaEstudio(id) {
@@ -719,11 +719,11 @@ function telaEstudio(id) {
     corpo = `<div class="topo" style="margin-bottom:14px"><p class="muted" style="margin:0">Escolha um formato da sua coleção de reels. Clique na capa para ver o esqueleto.</p>
       <div class="linha"><input class="campo" data-busca="moldes" value="${esc(buscaMolde)}" placeholder="Buscar: lista, costura, livro…"><button class="chip ${!e.molde ? 'sel' : ''}" data-acao="estudioMolde" data-id="">Sem molde</button></div></div>
       ${ver ? `<section class="cartao molde-aberto"><div class="secao-titulo"><h2>${esc(ver.tema)}</h2><button class="btn-3" data-acao="verMolde" data-id="">Fechar</button></div>
-        <div class="molde-quem">${ver.capas.map((c) => `<img src="${esc(c)}" alt="">`).join('')}<div><b>${esc(ver.criador)}</b><small>${esc(ver.formato)}</small><small><i>“${esc(ver.gancho)}”</i></small>${ver.conceito ? `<small>Ensina: ${esc(ver.conceito)}</small>` : ''}</div></div>
+        <div class="molde-quem">${ver.capas.map((c) => `<img src="${esc(c)}" alt="" onerror="this.remove()">`).join('')}<div><b>${esc(ver.criador)}</b><small>${esc(ver.formato)}</small><small><i>“${esc(ver.gancho)}”</i></small>${ver.conceito ? `<small>Ensina: ${esc(ver.conceito)}</small>` : ''}</div></div>
         <pre class="molde-texto">${esc(ver.molde)}</pre>
         <div class="linha"><button class="btn" data-acao="estudioMolde" data-id="${ver.id}">${e.molde === ver.id ? '✓ Escolhido' : 'Usar este molde'}</button><a class="btn-3" href="${esc(ver.link)}" target="_blank" rel="noopener">Ver o reel</a></div></section>` : ''}
       <div class="moldes">${lista.map((m) => `<button class="molde-card ${e.molde === m.id ? 'sel' : ''}" data-acao="verMolde" data-id="${m.id}">
-        ${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="" loading="lazy">` : '<span class="sem-capa"></span>'}
+        ${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sem-capa'}))">` : '<span class="sem-capa"></span>'}
         <b>${esc(m.formato)}</b><small>${esc(m.criador)}</small>${e.molde === m.id ? '<span class="selo">✓ escolhido</span>' : ''}</button>`).join('') || '<p class="vazio">Nenhum molde com essa busca.</p>'}</div>`;
   } else if (e.passo === 'meio') {
     corpo = `<div class="grade-2"><section class="cartao"><h2>O meio</h2>
