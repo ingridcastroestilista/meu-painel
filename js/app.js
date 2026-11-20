@@ -573,14 +573,18 @@ let filtroPost = { formato: '', funcao: '', serie: '' };
 let verPostados = false;
 let verTodasIdeias = false;
 const grupoAberto = { posts: new Set(), aulas: new Set() };
-// Cartões de cada grupo (Ideia, Roteiro…) com o nome e o número; a lista só aparece ao tocar.
+// Cartões de cada grupo (Ideia, Roteiro…): mostram só o primeiro item; o resto abre ao tocar.
 function cartoesGrupos(tipo, grupos, linha, extra = () => '') {
   const busca = !!buscaRot.trim();
   return grupos.map((g) => {
-    const total = g.total ?? g.itens.length;
-    const aberto = busca ? total > 0 : grupoAberto[tipo].has(g.id);
-    return `<section class="cartao grupo ${aberto ? 'aberto' : ''}"><div class="secao-titulo"><button class="grupo-topo" data-acao="abrirGrupo" data-tipo="${tipo}" data-id="${g.id}" aria-expanded="${aberto}"><h2>${esc(g.nome)}</h2><span class="grupo-num">${total}</span><span class="seta" aria-hidden="true">›</span></button>${aberto ? extra(g) : ''}</div>
-      ${aberto ? (g.itens.length ? `<ul class="lista">${g.itens.map(linha).join('')}</ul>` : `<p class="vazio">${total ? 'Nada no último mês.' : 'Nada aqui.'}</p>`) : ''}</section>`;
+    const varios = g.itens.length > 1;
+    const aberto = busca || grupoAberto[tipo].has(g.id);
+    const mostrar = aberto ? g.itens : g.itens.slice(0, 1);
+    const titulo = varios && !busca
+      ? `<button class="grupo-topo" data-acao="abrirGrupo" data-tipo="${tipo}" data-id="${g.id}" aria-expanded="${aberto}"><h2>${esc(g.nome)}</h2><span class="seta" aria-hidden="true">›</span></button>`
+      : `<h2>${esc(g.nome)}</h2>`;
+    return `<section class="cartao grupo ${aberto ? 'aberto' : ''}"><div class="secao-titulo">${titulo}${aberto ? extra(g) : ''}</div>
+      ${g.itens.length ? `<ul class="lista">${mostrar.map(linha).join('')}</ul>${varios && !busca ? `<button class="mais-links" data-acao="abrirGrupo" data-tipo="${tipo}" data-id="${g.id}">${aberto ? 'Mostrar só o primeiro' : 'Ver os outros'}</button>` : ''}` : `<p class="vazio">${g.total ? 'Nada no último mês.' : 'Nada aqui.'}</p>`}</section>`;
   });
 }
 const textoPuro = (html) => String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
@@ -1096,6 +1100,7 @@ async function trocarCapa(id, arquivo) {
 // LINKS
 // ======================================================================
 let buscaLink = '';
+const linksAbertos = new Set();
 function telaLinks() {
   const s = st();
   const q = buscaLink.toLowerCase();
@@ -1109,7 +1114,15 @@ function telaLinks() {
     .filter((g) => g.itens.length || g.id);
   return `<div class="topo"><div><h1>Links</h1></div><div class="linha"><input class="busca" type="search" placeholder="Buscar…" value="${esc(buscaLink)}" data-busca="links"><button class="btn" data-acao="novoLink">+ Link</button></div></div>
   ${top.length && !q ? `<section class="secao" style="margin-top:0;margin-bottom:22px"><div class="grupo-dia" style="margin-top:0">Mais usados</div><div class="mais-usados">${top.map((l) => `<button class="chip" data-acao="copiarLink" data-id="${l.id}" title="Copiar link">${esc(l.nome)}</button>`).join('')}</div></section>` : ''}
-  <div class="grade-links">${grupos.map((g) => `<section class="cartao" style="margin:0"><div class="secao-titulo"><h2>${esc(g.nome)}</h2>${g.id ? `<button class="btn-3 btn-pequeno" data-acao="novoLink" data-grupo="${g.id}">+ Link</button>` : ''}</div>${g.itens.length ? `<ul class="lista">${g.itens.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)).map(linha).join('')}</ul>` : '<p class="vazio">Nenhum link.</p>'}</section>`).join('')}</div>
+  <div class="grade-links">${grupos.map((g) => {
+    const itens = g.itens.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+    const chave = g.id || 'sem';
+    const varios = itens.length > 1;
+    const aberto = !!q || linksAbertos.has(chave);
+    const mostrar = aberto ? itens : itens.slice(0, 1);
+    return `<section class="cartao grupo-links ${varios ? 'com-mais' : ''} ${aberto ? 'aberto' : ''}" style="margin:0"><div class="secao-titulo">${varios && !q ? `<button class="grupo-topo" data-acao="abrirLinks" data-id="${chave}" aria-expanded="${aberto}"><h2>${esc(g.nome)}</h2><span class="seta" aria-hidden="true">›</span></button>` : `<h2>${esc(g.nome)}</h2>`}${g.id ? `<button class="btn-3 btn-pequeno" data-acao="novoLink" data-grupo="${g.id}">+ Link</button>` : ''}</div>
+      ${itens.length ? `<ul class="lista">${mostrar.map(linha).join('')}</ul>${varios && !q ? `<button class="mais-links" data-acao="abrirLinks" data-id="${chave}">${aberto ? 'Mostrar só o primeiro' : 'Ver os outros links'}</button>` : ''}` : '<p class="vazio">Nenhum link.</p>'}</section>`;
+  }).join('')}</div>
   <p class="dica" style="margin-top:16px">Na mensagem pronta, escreva {link} onde o link deve aparecer. Sem {link}, ele vai no fim. Os grupos são editados em Ajustes.</p>`;
 }
 function abrirLinkForm(id, grupo, projeto) {
@@ -1572,6 +1585,7 @@ const acoes = {
   // Começar pequeno / foco
   comecar() { comecarPequeno(); },
   fazerAgora(el) { fazerAgora(el.dataset.id); },
+  abrirLinks(el) { const id = el.dataset.id; if (linksAbertos.has(id)) linksAbertos.delete(id); else linksAbertos.add(id); redesenhar(); },
   outraOpcao() { opcaoIdx++; mostrarOpcao(); },
   comecarFoco() { const o = opcoes[opcaoIdx % opcoes.length]; janela.close(); iniciarFoco(o.texto, o.tarefaId); },
   focoPomodoro() { iniciarPomodoro(); },

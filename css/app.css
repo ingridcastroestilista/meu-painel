@@ -451,8 +451,6 @@ img.sem-imagem { min-height: 60px; }
 
 /* Posts e aulas: cartões com o nome e o número; a lista abre ao tocar */
 .grupos > div > .cartao + .cartao { margin-top: 18px; }
-.grupo .secao-titulo { margin-bottom: 0; }
-.grupo.aberto .secao-titulo { margin-bottom: 10px; }
 .grupo-topo { flex: 1; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; }
 .grupo-topo h2 { margin: 0; }
 .grupo-topo h2::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--toque, #97A28C); margin-right: 9px; vertical-align: middle; position: relative; top: -2px; }
@@ -468,3 +466,12 @@ img.sem-imagem { min-height: 60px; }
 .tarefa:hover .fazer-agora, .fazer-agora:focus-visible { opacity: 1; }
 .fazer-agora:hover { background: var(--verde); border-color: var(--verde); color: #fff; }
 @media (hover: none) { .fazer-agora { opacity: .85; } }
+
+/* Links: cada grupo mostra só o primeiro link; o resto abre ao tocar */
+.grupo-links .grupo-topo h2::before { background: var(--toque, #97A28C); }
+.grupo-links.aberto .seta { transform: rotate(90deg); }
+.grupo-links .seta { font-size: 20px; color: var(--texto-2); transition: transform .15s; line-height: 1; }
+.grupo-links .grupo-topo { flex: 1; }
+.grupo-links .grupo-num { margin-left: 4px; }
+.mais-links { margin-top: 8px; background: none; border: 0; padding: 4px 0; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; color: var(--verde); }
+.mais-links:hover { text-decoration: underline; }
