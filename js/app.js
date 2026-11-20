@@ -113,6 +113,7 @@ function itemTarefa(t, d) {
     <button class="check ${t.feitaEm ? 'feito' : ''}" data-acao="concluir" data-id="${t.id}" aria-label="Concluir"></button>
     ${hora ? `<span class="hora">${esc(hora)}</span>` : ''}<div class="txt" data-acao="abrirTarefa" data-id="${t.id}"><span>${esc(t.texto)}</span>
       ${t.primeiroPasso ? `<small>Primeiro passo: ${esc(t.primeiroPasso)}</small>` : ''}</div>
+    ${t.feitaEm ? '' : `<button class="fazer-agora" data-acao="fazerAgora" data-id="${t.id}" title="Vou fazer agora (abre o Pomodoro)" aria-label="Vou fazer agora">▶</button>`}
     <div class="meta">${t.repetir ? '<span title="Repete">↻</span>' : ''}${nomeProjeto(t.projeto) ? `<span class="tag tag-cor" ${estiloCor(cp)}>${esc(nomeProjeto(t.projeto))}</span>` : ''}${cat ? `<span class="tag tag-cor" ${estiloCor(cc)}>${esc(cat)}</span>` : ''}${qd && qd !== 'Hoje' ? `<span class="quando ${tipoQd}">${esc(qd)}</span>` : ''}</div>
   </li>`;
 }
@@ -256,7 +257,7 @@ function blocoProximasSemana(d) {
   return `<div class="linha-hoje proximas-semana" style="align-items:flex-start"><span class="rot" style="padding-top:4px">Na semana</span>
     <div class="espaco"><p class="frase-ideia" style="font-size:17px">${esc(t.texto)}</p>
       <div class="meta-semana"><span class="quando ${qd === 'Amanhã' ? 'q-amanha' : 'q-semana'}">${esc(qd)}${t.hora ? ` · ${esc(t.hora)}` : ''}</span>${nomeProjeto(t.projeto) ? ` <span class="tag tag-cor" ${estiloCor(cp)}>${esc(nomeProjeto(t.projeto))}</span>` : ''}</div>
-      <div class="linha" style="margin-top:10px">${podeAdiantar ? `<button class="btn btn-pequeno" data-acao="adiantarHoje" data-id="${t.id}">Fazer hoje</button>` : ''}<button class="btn btn-2 btn-pequeno" data-acao="concluir" data-id="${t.id}">Já fiz</button></div></div>
+      <div class="linha" style="margin-top:10px">${podeAdiantar ? `<button class="btn btn-pequeno" data-acao="adiantarHoje" data-id="${t.id}">Fazer hoje</button>` : ''}<button class="btn btn-2 btn-pequeno" data-acao="fazerAgora" data-id="${t.id}">▶ Fazer agora</button><button class="btn-3" data-acao="concluir" data-id="${t.id}">Já fiz</button></div></div>
     ${lista.length > 1 ? `<div class="nav-semana"><button class="icone" data-acao="outraSemana" data-d="-1" aria-label="Anterior">‹</button><span class="muted">${idxSemana + 1}/${lista.length}</span><button class="icone" data-acao="outraSemana" data-d="1" aria-label="Próxima">›</button></div>` : ''}</div>`;
 }
 
@@ -265,9 +266,10 @@ function blocoIdeiaDoDia() {
   if (!c) return '';
   const fmt = c.formato ? nomeDe(L().formatos, c.formato) : '';
   const f = R.frasesIdeia(c, fmt);
-  return `<div class="linha-hoje ideia-dia" style="align-items:flex-start"><span class="rot" style="padding-top:4px">Ideia do dia</span>
+  const gravar = c.tipo === 'gravar';
+  return `<div class="linha-hoje ideia-dia" style="align-items:flex-start"><span class="rot" style="padding-top:4px">${gravar ? 'Para gravar' : 'Ideia do dia'}</span>
     <div class="espaco"><p class="frase-ideia">${esc(f.frase)}</p><span class="muted" style="font-size:13.5px">${esc(f.extra)}</span>
-    <div class="linha" style="margin-top:10px"><button class="btn btn-pequeno" data-acao="ideiaFazer">Vou fazer</button><button class="btn btn-2 btn-pequeno" data-acao="ideiaOutra">Outra</button><button class="btn-3" data-acao="ideiaHojeNao">Hoje não</button></div></div></div>`;
+    <div class="linha" style="margin-top:10px"><button class="btn btn-pequeno" data-acao="ideiaFazer">${gravar ? 'Vou gravar' : 'Vou fazer'}</button><button class="btn btn-2 btn-pequeno" data-acao="ideiaOutra">Outra</button><button class="btn-3" data-acao="ideiaHojeNao">Hoje não</button></div></div></div>`;
 }
 
 // ======================================================================
@@ -388,7 +390,7 @@ function abrirTarefa(id) {
     <label data-mostra="rep-ano" ${rep.tipo === 'ano' ? '' : 'hidden'}>Data (dia e mês)<input type="date" class="campo" name="repAno" value="${rep.tipo === 'ano' ? `${new Date().getFullYear()}-${String(rep.mes).padStart(2, '0')}-${String(rep.dia).padStart(2, '0')}` : ''}"></label>
     <label>Projeto<select class="campo" name="projeto">${opcProjetos(t.projeto)}</select></label>
     <label>Primeiro passo (opcional)<input class="campo" name="primeiroPasso" value="${esc(t.primeiroPasso || '')}" placeholder="Uma ação bem pequena para destravar"></label>
-    <div class="botoes">${id ? '<button type="button" class="btn btn-perigo" data-acao="apagarTarefa" data-id="' + t.id + '">Apagar</button>' : ''}<span class="espaco"></span>
+    <div class="botoes">${id ? '<button type="button" class="btn btn-perigo" data-acao="apagarTarefa" data-id="' + t.id + '">Apagar</button>' : ''}${id && !t.feitaEm ? '<button type="button" class="btn btn-2" data-acao="fazerAgora" data-id="' + t.id + '">▶ Vou fazer agora</button>' : ''}<span class="espaco"></span>
       <button type="button" class="btn btn-3" data-acao="fecharJanela">Cancelar</button><button class="btn" type="submit">Salvar</button></div>
   </form>`;
   janela.showModal();
@@ -481,6 +483,17 @@ function iniciarFoco(texto, tarefaId) {
   desenharFoco();
 }
 const pomo = () => st().ajustes.pomodoro;
+// "Vou fazer agora": abre o Pomodoro direto, ligado à tarefa (Concluí marca a tarefa como feita).
+function fazerAgora(id) {
+  const t = st().tarefas.find((x) => x.id === id);
+  if (!t) return;
+  if (janela.open) janela.close();
+  S.mudar((s) => {
+    s.foco = { texto: t.texto, tarefaId: t.id, modo: 'foco', inicio: Date.now(), fim: Date.now() + pomo().foco * 60000, ciclo: 1, mini: false, acabou: false };
+    logar('inicios');
+  });
+  desenharFoco();
+}
 function iniciarPomodoro() {
   S.mudar((s) => { s.foco = { ...s.foco, modo: 'foco', fim: Date.now() + pomo().foco * 60000, ciclo: 1, acabou: false }; });
   desenharFoco();
@@ -559,6 +572,17 @@ let buscaRot = '';
 let filtroPost = { formato: '', funcao: '', serie: '' };
 let verPostados = false;
 let verTodasIdeias = false;
+const grupoAberto = { posts: new Set(), aulas: new Set() };
+// Cartões de cada grupo (Ideia, Roteiro…) com o nome e o número; a lista só aparece ao tocar.
+function cartoesGrupos(tipo, grupos, linha, extra = () => '') {
+  const busca = !!buscaRot.trim();
+  return grupos.map((g) => {
+    const total = g.total ?? g.itens.length;
+    const aberto = busca ? total > 0 : grupoAberto[tipo].has(g.id);
+    return `<section class="cartao grupo ${aberto ? 'aberto' : ''}"><div class="secao-titulo"><button class="grupo-topo" data-acao="abrirGrupo" data-tipo="${tipo}" data-id="${g.id}" aria-expanded="${aberto}"><h2>${esc(g.nome)}</h2><span class="grupo-num">${total}</span><span class="seta" aria-hidden="true">›</span></button>${aberto ? extra(g) : ''}</div>
+      ${aberto ? (g.itens.length ? `<ul class="lista">${g.itens.map(linha).join('')}</ul>` : `<p class="vazio">${total ? 'Nada no último mês.' : 'Nada aqui.'}</p>`) : ''}</section>`;
+  });
+}
 const textoPuro = (html) => String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
 const casa = (txt) => !buscaRot || txt.toLowerCase().includes(buscaRot.toLowerCase());
 
@@ -586,21 +610,14 @@ function telaRoteiros(aba = 'aulas') {
   const aulas = s.aulas.filter((a) => casa(`${a.titulo} ${a.modulo} ${textoPuro(a.texto)}`));
   const semana = R.aulasDaSemana(aulas, d);
   const atrasadas = R.aulasAtrasadas(aulas, etapas, d);
-  const semSemana = aulas.filter((a) => !a.semana);
-  const porProduto = L().produtos.map((p) => ({ p, itens: aulas.filter((a) => a.produto === p.id) })).filter((g) => g.itens.length);
-  const outros = aulas.filter((a) => !L().produtos.some((p) => p.id === a.produto));
-  const linhaAula = (a) => `<li class="item"><div class="principal" data-acao="irAula" data-id="${a.id}"><b>${esc(a.titulo || 'Aula sem título')}</b><small>${esc([a.modulo, a.semana ? `semana de ${R.ddmm(a.semana)}` : 'sem semana'].filter(Boolean).join(' · '))}</small></div><span class="mini-prog">${R.etapasFeitas(a, etapas)}/${etapas.length}</span></li>`;
+  const linhaAula = (a) => `<li class="item"><div class="principal" data-acao="irAula" data-id="${a.id}"><b>${esc(a.titulo || 'Aula sem título')}</b><small>${esc([nomeDe(L().produtos, a.produto), a.modulo, a.semana ? `semana de ${R.ddmm(a.semana)}` : 'sem semana'].filter(Boolean).join(' · '))}</small></div><span class="mini-prog">${R.etapasFeitas(a, etapas)}/${etapas.length}</span></li>`;
   return `${abas}
   <div class="topo"><div><h1>Aulas</h1></div><div class="linha">${busca}<button class="btn" data-acao="novaAula">+ Aula</button></div></div>
   <section class="cartao"><h2>Esta semana</h2>
     ${semana.length || atrasadas.length ? [...atrasadas, ...semana].map((a) => cartaoAula(a, d)).join('') : '<p class="vazio">Nenhuma aula planejada para esta semana.</p>'}
   </section>
-  <div class="grade-2" style="margin-top:18px">
-    <div>${porProduto.map((g) => `<section class="cartao"><h2>${esc(g.p.nome)}</h2><ul class="lista">${g.itens.map(linhaAula).join('')}</ul></section>`).join('')}
-      ${outros.length ? `<section class="cartao"><h2>Sem produto</h2><ul class="lista">${outros.map(linhaAula).join('')}</ul></section>` : ''}
-      ${!aulas.length ? '<p class="vazio">Nenhuma aula ainda.</p>' : ''}</div>
-    <div><section class="cartao"><h2>Sem semana</h2>${semSemana.length ? `<ul class="lista">${semSemana.map(linhaAula).join('')}</ul>` : '<p class="vazio">Todas têm semana.</p>'}</section></div>
-  </div>`;
+  ${(() => { const c = cartoesGrupos('aulas', R.gruposAulas(aulas, etapas).filter((g, i) => i === 0 || g.itens.length), linhaAula); const m = Math.ceil(c.length / 2); return `<div class="grade-2 iguais grupos" style="margin-top:18px"><div>${c.slice(0, m).join('')}</div><div>${c.slice(m).join('')}</div></div>`; })()}
+  ${!aulas.length ? '<p class="vazio">Nenhuma aula ainda.</p>' : ''}`;
 }
 
 function telaPosts(busca) {
@@ -614,19 +631,16 @@ function telaPosts(busca) {
   const sel = (nome, lista, valor) => `<select class="campo" data-filtro-post="${nome}"><option value="">${{ formato: 'Formato', funcao: 'Função', serie: 'Série' }[nome]}: todos</option>${lista.map((x) => `<option value="${esc(x.id)}" ${valor === x.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>`;
   const linha = (p) => `<li class="item"><div class="principal" data-acao="irPost" data-id="${p.id}"><b style="${R.postAtrasado(p, d) ? 'color:var(--rose-1)' : ''}">${esc(p.titulo)}</b><small>${esc([p.serie, p.data ? R.quando(p.data, d) : ''].filter(Boolean).join(' · '))}</small></div>
     ${p.formato ? `<span class="tag">${esc(nomeDe(L().formatos, p.formato))}</span>` : ''}${p.funcao ? `<span class="tag v">${esc(nomeDe(L().funcoes, p.funcao))}</span>` : ''}</li>`;
+  const umMes = R.somaDias(d, -31);
   const grupos = L().situacoesPost.map((sit) => {
     const itens = posts.filter((p) => p.situacao === sit.id).sort((a, b) => (a.data || '9').localeCompare(b.data || '9') || (a.criadaEm || '').localeCompare(b.criadaEm || '') || (a.ordem ?? 0) - (b.ordem ?? 0));
-    if (sit.id === 'postado') {
-      const umMes = R.somaDias(d, -31);
-      const recentes = verPostados ? itens : itens.filter((p) => !p.data || p.data >= umMes);
-      return `<section class="cartao"><div class="secao-titulo"><h2>${esc(sit.nome)} <span class="muted" style="font-family:var(--sans);font-size:14px">${itens.length}</span></h2>${itens.length > recentes.length || verPostados ? `<button class="btn-3" data-acao="verPostados">${verPostados ? 'Só o último mês' : 'Ver todos'}</button>` : ''}</div>${recentes.length ? `<ul class="lista">${recentes.map(linha).join('')}</ul>` : '<p class="vazio">Nada no último mês.</p>'}</section>`;
-    }
-    const limite = sit.id === 'ideia' && !verTodasIdeias && !buscaRot ? 15 : Infinity;
-    return `<section class="cartao"><h2>${esc(sit.nome)} <span class="muted" style="font-family:var(--sans);font-size:14px">${itens.length}</span></h2>${itens.length ? `<ul class="lista">${itens.slice(0, limite).map(linha).join('')}</ul>${itens.length > limite ? `<button class="btn-3" data-acao="verTodasIdeias" style="margin-top:6px">Ver todas (${itens.length})</button>` : ''}` : '<p class="vazio">Nada aqui.</p>'}</section>`;
+    return { id: sit.id, nome: sit.nome, itens };
   });
+  const extra = (g) => (g.id === 'postado' && g.itens.some((p) => p.data && p.data < umMes) ? `<button class="btn-3" data-acao="verPostados">${verPostados ? 'Só o último mês' : 'Ver todos'}</button>` : '');
+  if (!verPostados) { const g = grupos.find((x) => x.id === 'postado'); if (g) g.itensLista = g.itens.filter((p) => !p.data || p.data >= umMes); }
   return `<div class="topo"><div><h1>Posts</h1></div><div class="linha">${busca}<button class="btn" data-acao="novoPost">+ Post</button></div></div>
     <div class="filtros">${sel('formato', L().formatos, filtroPost.formato)}${sel('funcao', L().funcoes, filtroPost.funcao)}${sel('serie', series.map((x) => ({ id: x, nome: x })), filtroPost.serie)}</div>
-    <div class="grade-2 iguais"><div>${grupos[0]}</div><div>${grupos[1]}${grupos[2]}${grupos[3]}</div></div>`;
+    ${(() => { const c = cartoesGrupos('posts', grupos.map((g) => (g.itensLista ? { ...g, itens: g.itensLista, total: g.itens.length } : g)), linha, extra); return `<div class="grade-2 iguais grupos"><div>${c[0]}</div><div>${c.slice(1).join('')}</div></div>`; })()}`;
 }
 
 // ---------- Editor de roteiro ----------
@@ -678,19 +692,47 @@ function telaPost(id) {
     <label>Link<input class="campo" data-campo-post="link" value="${esc(p.link || '')}" placeholder="Opcional"></label>
   </div>
   ${ferramentas}
-  <div class="editor" contenteditable="true" data-editor="post" data-id="${p.id}">${p.texto || ''}</div>`;
+  <div class="editor" contenteditable="true" data-editor="post" data-id="${p.id}">${p.texto || ''}</div>
+  ${p.situacao !== 'postado' && (p.estudio || textoPuro(p.texto).trim()) ? checagemPost(p) : ''}`;
+}
+function checagemPost(p) {
+  const e = E.estudioDe(p);
+  const n = E.CHECAGEM.filter((c) => e.check[c.id]).length;
+  return `<section class="cartao checagem-post nao-imprimir"><div class="secao-titulo"><h2>Antes de gravar</h2><small class="muted">${n} de ${E.CHECAGEM.length}</small></div>
+    <ul class="checagem">${E.CHECAGEM.map((c) => `<li><button class="check ${e.check[c.id] ? 'feito' : ''}" data-acao="postCheck" data-id="${c.id}" aria-label="Marcar"></button><span>${esc(c.texto)}</span></li>`).join('')}</ul></section>`;
 }
 
 // ---------- Estúdio de Roteiro ----------
-// Um passo por vez: o final, o molde (da coleção de reels), o meio, o gancho e a checagem.
+// Um passo por vez: a ideia, a gravação, as referências, o começo, o meio, o final e a edição.
 let buscaMolde = '';
 let verMoldeId = '';
+let verTodosMoldes = false;
 const moldePorId = (id) => MOLDES.find((m) => m.id === id);
-function caixaMolde(m, aberto = true) {
-  if (!m) return '<section class="cartao"><h2>Molde</h2><p class="vazio">Sem molde escolhido. <a href="#" data-acao="estudioPasso" data-passo="molde">Escolher</a></p></section>';
-  return `<section class="cartao molde-lado"><h2>Molde</h2>
-    <div class="molde-quem">${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="" onerror="this.remove()">` : ''}<div><b>${esc(m.criador)}</b><small>${esc(m.formato)}</small></div></div>
-    <details ${aberto ? 'open' : ''}><summary>Ver o esqueleto</summary><pre class="molde-texto">${esc(m.molde)}</pre></details></section>`;
+const idsFavoritos = () => (Array.isArray(st().ajustes.moldesFavoritos) ? st().ajustes.moldesFavoritos : E.MOLDES_PADRAO);
+function caixaMolde(m) {
+  if (!m) return '';
+  return `<section class="cartao molde-lado"><h2>Molde</h2><p class="molde-nome"><b>${esc(m.formato)}</b><small>${esc(m.criador)}</small></p>
+    <details><summary>Ver o esqueleto</summary><pre class="molde-texto">${esc(m.molde)}</pre></details></section>`;
+}
+// Miniaturas das imagens do post, para consultar enquanto escreve.
+function caixaImagens(e) {
+  if (!e.imagens.length) return '';
+  return `<section class="cartao"><h2>Suas imagens</h2><div class="imagens-mini">${e.imagens.map((i) => `<figure><img data-img="${esc(i.caminho)}" alt="">${i.nota ? `<figcaption>${esc(i.nota)}</figcaption>` : ''}</figure>`).join('')}</div></section>`;
+}
+async function preencherImagens() {
+  for (const img of $$('img[data-img]:not([src])')) {
+    const url = await N.verImagem(img.dataset.img).catch(() => '');
+    if (url) img.src = url; else img.classList.add('sem-imagem');
+  }
+}
+function cartaoMolde(m, e) {
+  const fav = idsFavoritos().includes(m.id);
+  return `<div class="molde-txt ${e.molde === m.id ? 'sel' : ''} ${verMoldeId === m.id ? 'aberto' : ''}">
+    <button class="molde-txt-topo" data-acao="verMolde" data-id="${verMoldeId === m.id ? '' : m.id}"><b>${esc(m.formato)}</b><small>${esc(m.criador)}</small><i>“${esc(m.gancho)}”</i>${e.molde === m.id ? '<span class="selo">✓ escolhido</span>' : ''}</button>
+    ${verMoldeId === m.id ? `<div class="molde-txt-corpo">${m.conceito ? `<p class="muted"><b>O que ensina:</b> ${esc(m.conceito)}</p>` : ''}<pre class="molde-texto">${esc(m.molde)}</pre>
+      <div class="linha"><button class="btn btn-pequeno" data-acao="estudioMolde" data-id="${e.molde === m.id ? '' : m.id}">${e.molde === m.id ? 'Tirar o molde' : 'Usar este molde'}</button>${m.link ? `<a class="btn-3" href="${esc(m.link)}" target="_blank" rel="noopener">Ver o reel</a>` : ''}
+      <span class="espaco"></span><button class="btn-3" data-acao="estudioFavorito" data-id="${m.id}">${fav ? '★ Tirar dos 10' : '☆ Pôr nos 10'}</button></div></div>` : ''}
+  </div>`;
 }
 function telaEstudio(id) {
   const p = st().posts.find((x) => x.id === id);
@@ -701,50 +743,84 @@ function telaEstudio(id) {
   const i = Math.max(0, E.PASSOS.findIndex((x) => x.id === e.passo));
   const abas = `<div class="abas passos">${E.PASSOS.map((x, n) => `<button class="${x.id === e.passo ? 'sel' : ''} ${feitos[x.id] ? 'feito' : ''}" data-acao="estudioPasso" data-passo="${x.id}"><span class="num">${feitos[x.id] ? '✓' : n + 1}</span>${esc(x.nome)}</button>`).join('')}</div>`;
   const campo = (nome, valor, ph, extra = '') => `<textarea class="campo cresce estudio-campo" rows="2" data-estudio="${nome}" ${extra} placeholder="${esc(ph)}">${esc(valor)}</textarea>`;
+  const pergunta = (t) => `<p class="pergunta">${t}</p>`;
+  const chips = (nome, opcoes, atual) => `<div class="chips">${opcoes.map((o) => { const v = o.id || o; return `<button class="chip ${atual === v ? 'sel' : ''}" data-acao="estudioEscolha" data-campo="${nome}" data-valor="${esc(v)}">${esc(o.nome || o)}</button>`; }).join('')}</div>`;
   const anotacao = textoPuro(p.texto).replace(/\s+/g, ' ').trim();
+  const cartaoIdeia = `<section class="cartao"><h2>A ideia</h2><p class="frase-ideia">${esc(p.titulo || 'Sem título')}</p>${anotacao ? `<p class="muted">${esc(anotacao.length > 500 ? `${anotacao.slice(0, 500)}…` : anotacao)}</p>` : ''}</section>`;
+  const lembreteFinal = `<p class="lembrete">Aonde o vídeo quer chegar: <b>${esc(e.final.trim() || '(escreva no passo 1)')}</b></p>`;
+  const fala = E.rotuloFala(e);
+  setTimeout(() => { preencherImagens(); const a = $('.abas.passos .sel'); if (a) a.scrollIntoView({ block: 'nearest', inline: 'center' }); }, 0);
   let corpo = '';
-  if (e.passo === 'final') {
-    corpo = `<div class="grade-2"><section class="cartao"><h2>Comece pelo final</h2>
-      <p class="muted">Qual é a única frase que precisa ficar na cabeça de quem assistiu?</p>
-      ${campo('final', e.final, 'Ex.: Corpete não se aperta. Se sustenta.', 'rows="3"')}
-      <p class="muted" style="margin-top:18px">E o que a pessoa deve fazer quando o vídeo acabar?</p>
-      <div class="chips">${E.ACOES.map((a) => `<button class="chip ${e.acao === a ? 'sel' : ''}" data-acao="estudioAcao" data-valor="${esc(a)}">${esc(a)}</button>`).join('')}</div>
-      ${e.acao && e.acao !== 'Só a frase final' ? `<p class="muted" style="margin-top:14px">Como você vai pedir? (opcional)</p>${campo('cta', e.cta, 'Ex.: Guarda para o próximo vestido de festa.')}` : ''}
+  if (e.passo === 'ideia') {
+    corpo = `<div class="grade-2"><section class="cartao"><h2>Para quem e para quê</h2>
+      ${pergunta('Para quem é este vídeo?')}${campo('publico', e.publico, 'Ex.: aluna que está começando a vender vestidos de festa')}
+      ${pergunta('O que a pessoa vai levar?')}${chips('objetivo', E.OBJETIVOS, e.objetivo)}
+      ${pergunta('Qual frase precisa ficar na cabeça dela?')}${campo('final', e.final, 'Ex.: Corpete não se aperta. Se sustenta.', 'rows="3"')}
+      <p class="muted" style="font-size:13px">Pode ser um rascunho. Você volta nela no passo “O final”.</p></section>
+      <div>${cartaoIdeia}<section class="cartao dica"><h2>Por que pensar na frase agora</h2><p class="muted">Quando você sabe aonde quer chegar, o meio fica óbvio e o começo vira a parte mais fácil. É o croqui: ninguém corta o tecido antes de saber qual vestido quer.</p></section></div></div>`;
+  } else if (e.passo === 'gravacao') {
+    const dicas = {
+      camera: 'Você aparece falando. O que aparece além de você (peças, gestos, textos) ajuda quem assiste sem som.',
+      narrado: 'Sua voz por cima de imagens. Pense numa imagem diferente para cada frase: é aí que o visual explica a fala.',
+      semfala: 'Texto na tela e música. Cada tela com uma ideia só, curta, e tempo para ler.',
+      tutorial: 'Mostrando as mãos. Grave de cima, com boa luz, e mostre o resultado logo no começo.',
+      misto: 'Misture você falando com cenas de apoio. Anote no meio o que aparece em cada parte.',
+    };
+    corpo = `<div class="grade-2"><section class="cartao"><h2>Como vai ser gravado</h2>
+      ${pergunta('Qual é o formato?')}${chips('formato', E.FORMATOS, e.formato)}
+      ${pergunta('Quanto tempo, mais ou menos?')}${chips('duracao', E.DURACOES, e.duracao)}
+      ${pergunta('Onde você vai gravar?')}${campo('cenario', e.cenario, 'Ex.: no ateliê, na mesa de corte, com luz da janela')}
+      ${pergunta('O que vai aparecer?')}${campo('mostrar', e.mostrar, 'Ex.: o vestido no manequim, o corpete por dentro, eu')}</section>
+      <div>${e.formato ? `<section class="cartao dica"><h2>${esc(E.formatoDe(e).nome)}</h2><p class="muted">${esc(dicas[e.formato])}</p></section>` : ''}${cartaoIdeia}</div></div>`;
+  } else if (e.passo === 'referencias') {
+    const favs = E.favoritos(MOLDES, idsFavoritos());
+    const todos = E.filtrarMoldes(MOLDES, buscaMolde);
+    corpo = `<section class="cartao zona-imagens" data-zona-imagens><div class="secao-titulo"><h2>Imagens para este post</h2>
+      <label class="btn btn-pequeno">+ Adicionar imagens<input type="file" accept="image/*" multiple data-img-post hidden></label></div>
+      ${N.conectada() ? '' : '<p class="aviso-nuvem">Para guardar imagens, entre na sua conta em Mais → Ajustes.</p>'}
+      ${e.imagens.length ? `<div class="imagens-post">${e.imagens.map((im) => `<figure><img data-img="${esc(im.caminho)}" alt=""><input class="campo" data-img-nota="${im.id}" value="${esc(im.nota || '')}" placeholder="Nota: usar no começo, cena 2…"><button class="apagar-img" data-acao="estudioApagarImg" data-id="${im.id}" aria-label="Apagar imagem">×</button></figure>`).join('')}</div>`
+        : '<p class="vazio">Fotos das peças, tecidos, prints de inspiração, croquis… No Mac, arraste ou cole (⌘V) aqui. No celular, toque em Adicionar.</p>'}</section>
+      <section class="cartao"><div class="secao-titulo"><h2>Moldes</h2>${e.molde ? '' : '<small class="muted">opcional</small>'}</div>
+      <p class="muted" style="margin-top:0">Toque num molde para ver como ele funciona.</p>
+      <div class="moldes-txt">${favs.map((m) => cartaoMolde(m, e)).join('')}</div>
+      <div class="linha" style="margin-top:14px"><button class="btn btn-2" data-acao="verTodosMoldes">${verTodosMoldes ? 'Esconder as outras referências' : `Ver todas as referências (${MOLDES.length})`}</button></div>
+      ${verTodosMoldes ? `<div style="margin-top:14px"><input class="campo" data-busca="moldes" value="${esc(buscaMolde)}" placeholder="Buscar: lista, costura, livro…">
+        <div class="moldes-txt" style="margin-top:10px">${todos.filter((m) => !idsFavoritos().includes(m.id)).map((m) => cartaoMolde(m, e)).join('') || '<p class="vazio">Nenhum molde com essa busca.</p>'}</div></div>` : ''}
+      </section>`;
+  } else if (e.passo === 'gancho') {
+    corpo = `<div class="grade-2"><section class="cartao"><h2>O começo</h2>
+      <p class="muted">Escreva 3 começos para o mesmo final e escolha um.</p>${lembreteFinal}
+      ${e.ganchos.map((g, n) => `<div class="opcao-gancho ${e.gancho === n ? 'sel' : ''}"><button class="bolinha" data-acao="estudioGancho" data-i="${n}" aria-label="Escolher a opção ${n + 1}">${e.gancho === n ? '✓' : n + 1}</button>${campo('ganchos', g, e.formato === 'semfala' ? 'O texto da primeira tela' : 'Uma frase que abre a curiosidade para o final', `data-i="${n}"`)}</div>`).join('')}
+      ${pergunta('O que aparece na primeira cena?')}${campo('cenaGancho', e.cenaGancho, 'Ex.: o vestido pronto girando, e depois o corte para o avesso')}
       </section>
-      <div><section class="cartao"><h2>A ideia</h2><p class="frase-ideia">${esc(p.titulo || 'Sem título')}</p>${anotacao ? `<p class="muted">${esc(anotacao.length > 500 ? `${anotacao.slice(0, 500)}…` : anotacao)}</p>` : ''}</section>
-      <section class="cartao dica"><h2>Por que começar pelo final</h2><p class="muted">Quando você sabe aonde quer chegar, o meio fica óbvio e o gancho vira a parte mais fácil. A frase final é o croqui: ninguém corta o tecido antes de saber qual vestido quer.</p></section></div></div>`;
-  } else if (e.passo === 'molde') {
-    const lista = E.filtrarMoldes(MOLDES, buscaMolde);
-    const ver = moldePorId(verMoldeId);
-    corpo = `<div class="topo" style="margin-bottom:14px"><p class="muted" style="margin:0">Escolha um formato da sua coleção de reels. Clique na capa para ver o esqueleto.</p>
-      <div class="linha"><input class="campo" data-busca="moldes" value="${esc(buscaMolde)}" placeholder="Buscar: lista, costura, livro…"><button class="chip ${!e.molde ? 'sel' : ''}" data-acao="estudioMolde" data-id="">Sem molde</button></div></div>
-      ${ver ? `<section class="cartao molde-aberto"><div class="secao-titulo"><h2>${esc(ver.tema)}</h2><button class="btn-3" data-acao="verMolde" data-id="">Fechar</button></div>
-        <div class="molde-quem">${ver.capas.map((c) => `<img src="${esc(c)}" alt="" onerror="this.remove()">`).join('')}<div><b>${esc(ver.criador)}</b><small>${esc(ver.formato)}</small><small><i>“${esc(ver.gancho)}”</i></small>${ver.conceito ? `<small>Ensina: ${esc(ver.conceito)}</small>` : ''}</div></div>
-        <pre class="molde-texto">${esc(ver.molde)}</pre>
-        <div class="linha"><button class="btn" data-acao="estudioMolde" data-id="${ver.id}">${e.molde === ver.id ? '✓ Escolhido' : 'Usar este molde'}</button><a class="btn-3" href="${esc(ver.link)}" target="_blank" rel="noopener">Ver o reel</a></div></section>` : ''}
-      <div class="moldes">${lista.map((m) => `<button class="molde-card ${e.molde === m.id ? 'sel' : ''}" data-acao="verMolde" data-id="${m.id}">
-        ${m.capas[0] ? `<img src="${esc(m.capas[0])}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sem-capa'}))">` : '<span class="sem-capa"></span>'}
-        <b>${esc(m.formato)}</b><small>${esc(m.criador)}</small>${e.molde === m.id ? '<span class="selo">✓ escolhido</span>' : ''}</button>`).join('') || '<p class="vazio">Nenhum molde com essa busca.</p>'}</div>`;
+      <div><section class="cartao"><h2>Tipos de começo da sua coleção</h2><ul class="tipos-gancho">${E.TIPOS_GANCHO.map((x) => `<li><b>${esc(x.nome)}</b><small>“${esc(x.ex)}” · ${esc(x.quem)}</small></li>`).join('')}</ul></section>
+      ${molde ? `<section class="cartao"><h2>Começo do molde</h2><p><i>“${esc(molde.gancho)}”</i></p><small class="muted">${esc(molde.criador)}</small></section>` : ''}${caixaImagens(e)}</div></div>`;
   } else if (e.passo === 'meio') {
     corpo = `<div class="grade-2"><section class="cartao"><h2>O meio</h2>
-      <p class="muted">Só o que leva até a frase final, no máximo 3 partes. Final: <b>${esc(e.final.trim() || '(escreva no passo 1)')}</b></p>
-      ${e.meio.map((m, n) => `<label class="parte"><span>Parte ${n + 1}</span>${campo('meio', m, n === 0 ? 'A situação, o problema ou a cena' : n === 1 ? 'O que ninguém percebe / a explicação' : 'A prova: um número, um caso, um trecho', `data-i="${n}"`)}</label>`).join('')}
+      <p class="muted">Só o que leva até a frase final, no máximo 3 partes.</p>${lembreteFinal}
+      ${e.meio.map((m, n) => `<div class="parte-bloco"><span class="parte-num">Parte ${n + 1}</span>
+        <label class="parte"><span>${esc(fala)}</span>${campo('meio', m, n === 0 ? 'A situação, o problema ou a cena' : n === 1 ? 'O que ninguém percebe / a explicação' : 'A prova: um número, um caso, um trecho', `data-i="${n}"`)}</label>
+        <label class="parte"><span>O que aparece na tela</span>${campo('cenas', e.cenas[n] || '', 'Ex.: close na costura, desenho mostrando a força no tecido', `data-i="${n}" rows="1"`)}</label></div>`).join('')}
       <div class="linha"><button class="btn-3" data-acao="estudioMaisParte">+ Parte</button><button class="btn-3" data-acao="estudioTrecho">❝ Trecho de livro</button></div></section>
-      <div>${caixaMolde(molde)}</div></div>`;
-  } else if (e.passo === 'gancho') {
-    corpo = `<div class="grade-2"><section class="cartao"><h2>O gancho</h2>
-      <p class="muted">Escreva 3 começos diferentes para o mesmo final e escolha um. Final: <b>${esc(e.final.trim() || '(escreva no passo 1)')}</b></p>
-      ${e.ganchos.map((g, n) => `<div class="opcao-gancho ${e.gancho === n ? 'sel' : ''}"><button class="bolinha" data-acao="estudioGancho" data-i="${n}" aria-label="Escolher a opção ${n + 1}">${e.gancho === n ? '✓' : n + 1}</button>${campo('ganchos', g, 'Uma frase que abre a curiosidade para o final', `data-i="${n}"`)}</div>`).join('')}
-      </section>
-      <div><section class="cartao"><h2>Tipos de gancho da sua coleção</h2><ul class="tipos-gancho">${E.TIPOS_GANCHO.map((x) => `<li><b>${esc(x.nome)}</b><small>“${esc(x.ex)}” · ${esc(x.quem)}</small></li>`).join('')}</ul></section>
-      ${molde ? `<section class="cartao"><h2>Gancho do molde</h2><p><i>“${esc(molde.gancho)}”</i></p><small class="muted">${esc(molde.criador)}</small></section>` : ''}</div></div>`;
+      <div>${caixaMolde(molde)}${caixaImagens(e)}</div></div>`;
+  } else if (e.passo === 'final') {
+    corpo = `<div class="grade-2"><section class="cartao"><h2>O final</h2>
+      ${pergunta('A frase que precisa ficar')}${campo('final', e.final, 'Ex.: Corpete não se aperta. Se sustenta.', 'rows="3"')}
+      ${pergunta('O que aparece no final?')}${campo('cenaFinal', e.cenaFinal, 'Ex.: o vestido na cliente, você olhando para a câmera')}
+      ${pergunta('O que a pessoa deve fazer quando o vídeo acabar?')}${chips('acao', E.ACOES, e.acao)}
+      ${e.acao && e.acao !== 'Só a frase final' ? `${pergunta('Como você vai pedir? (opcional)')}${campo('cta', e.cta, 'Ex.: Guarda para o próximo vestido de festa.')}` : ''}</section>
+      <div>${cartaoIdeia}${caixaImagens(e)}</div></div>`;
   } else {
     const montado = E.montarHTML(e, molde, esc);
-    corpo = `<div class="grade-2"><section class="cartao"><h2>Antes de gravar</h2>
-      <ul class="checagem">${E.CHECAGEM.map((c) => `<li><button class="check ${e.check[c.id] ? 'feito' : ''}" data-acao="estudioCheck" data-id="${c.id}" aria-label="Marcar"></button><span>${esc(c.texto)}</span></li>`).join('')}</ul>
-      <div class="linha" style="margin-top:18px"><button class="btn" data-acao="estudioMontar" ${montado ? '' : 'disabled'}>Montar roteiro no post</button><button class="btn btn-2" data-acao="estudioClaude">Pedir ao Claude</button></div>
-      <p class="muted" style="font-size:13px;margin-top:10px">Montar coloca o roteiro no editor do post${p.texto ? ', acima das suas anotações' : ''}, e a ideia passa para Roteiro.</p></section>
-      <section class="cartao"><h2>Como vai ficar</h2>${montado ? `<div class="previa">${montado}</div>` : '<p class="vazio">Escreva pelo menos o final ou o gancho.</p>'}</section></div>`;
+    corpo = `<div class="grade-2"><section class="cartao"><h2>Edição e postagem</h2>
+      ${pergunta('O que o visual vai explicar?')}${campo('visuais', e.visuais, 'Animações, ilustrações, setas, textos que mostram o que você está falando. Ex.: desenho do corpete com as barbatanas aparecendo', 'rows="3"')}
+      ${pergunta('Texto da capa')}${campo('capa', e.capa, 'Poucas palavras, que façam querer abrir')}
+      ${pergunta('Música')}${campo('musica', e.musica, 'Ex.: instrumental calma, sem letra')}
+      ${pergunta('Legenda do post')}${campo('legenda', e.legenda, 'O texto que vai embaixo do vídeo', 'rows="4"')}</section>
+      <div><section class="cartao dica"><h2>O visual explica a fala</h2><p class="muted">Para cada frase importante, pergunte: que imagem mostraria isso sem eu precisar falar? Um desenho, um antes e depois, uma seta, um número grande na tela.</p></section>${caixaImagens(e)}</div></div>
+      <section class="cartao montar"><div class="secao-titulo"><h2>Como vai ficar</h2><div class="linha"><button class="btn btn-2" data-acao="estudioClaude">Pedir ao Claude</button><button class="btn" data-acao="estudioMontar" ${montado ? '' : 'disabled'}>Montar roteiro no post</button></div></div>
+      ${montado ? `<div class="previa">${montado}</div>` : '<p class="vazio">Escreva pelo menos a frase final ou o começo.</p>'}
+      <p class="muted" style="font-size:13px;margin:12px 0 0">Montar coloca o roteiro no editor do post${p.texto ? ', acima das suas anotações' : ''}, com a lista de gravação, e a ideia passa para Roteiro. A checagem fica no fim da página do post.</p></section>`;
   }
   const ant = E.PASSOS[i - 1];
   const prox = E.PASSOS[i + 1];
@@ -753,10 +829,42 @@ function telaEstudio(id) {
     ${abas}${corpo}
     <div class="linha passos-nav">${ant ? `<button class="btn btn-2" data-acao="estudioPasso" data-passo="${ant.id}">← ${esc(ant.nome)}</button>` : ''}<span class="espaco"></span>${prox ? `<button class="btn" data-acao="estudioPasso" data-passo="${prox.id}">${esc(prox.nome)} →</button>` : ''}</div>`;
 }
-function mudarEstudio(fn, re = true) {
-  const id = rota().args[0];
+function mudarEstudio(fn, re = true, id = rota().args[0]) {
   S.mudar((s) => { const p = s.posts.find((x) => x.id === id); if (!p) return; p.estudio = E.estudioDe(p); fn(p.estudio, p); });
   if (re) redesenhar();
+}
+// Imagens do post: diminui (até 1280 px), guarda na nuvem e anota no estúdio.
+function encolherImagem(arquivo, max = 1280) {
+  return new Promise((ok, erro) => {
+    const img = new Image();
+    img.onload = () => {
+      const f = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * f); c.height = Math.round(img.height * f);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob((b) => (b ? ok(b) : erro(new Error('imagem'))), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => erro(new Error('Não consegui abrir essa imagem.'));
+    img.src = URL.createObjectURL(arquivo);
+  });
+}
+async function adicionarImagens(arquivos) {
+  const lista = [...(arquivos || [])].filter((f) => f.type.startsWith('image/'));
+  if (!lista.length) return;
+  const postId = rota().args[0];
+  if (!N.conectada()) { aviso('Entre na sua conta (Mais → Ajustes) para guardar imagens.'); return; }
+  aviso(lista.length > 1 ? `Guardando ${lista.length} imagens…` : 'Guardando a imagem…');
+  let ok = 0;
+  for (const arq of lista) {
+    try {
+      const blob = await encolherImagem(arq);
+      const id = S.uid();
+      const caminho = await N.enviarImagem(blob, id);
+      mudarEstudio((e) => { e.imagens.push({ id, caminho, nota: '' }); }, false, postId);
+      ok++;
+    } catch (err) { aviso(err.message || 'Não consegui guardar a imagem.'); }
+  }
+  if (ok) { aviso(ok > 1 ? `${ok} imagens guardadas` : 'Imagem guardada'); if (rota().nome === 'estudio') redesenharQuandoLivre(); }
 }
 
 let salvarEditorTimer;
@@ -1463,6 +1571,7 @@ const acoes = {
   },
   // Começar pequeno / foco
   comecar() { comecarPequeno(); },
+  fazerAgora(el) { fazerAgora(el.dataset.id); },
   outraOpcao() { opcaoIdx++; mostrarOpcao(); },
   comecarFoco() { const o = opcoes[opcaoIdx % opcoes.length]; janela.close(); iniciarFoco(o.texto, o.tarefaId); },
   focoPomodoro() { iniciarPomodoro(); },
@@ -1500,12 +1609,30 @@ const acoes = {
   },
   // Estúdio de Roteiro
   estudioPasso(el) { verMoldeId = ''; mudarEstudio((e) => { e.passo = el.dataset.passo; }); window.scrollTo(0, 0); },
-  estudioAcao(el) { mudarEstudio((e) => { e.acao = e.acao === el.dataset.valor ? '' : el.dataset.valor; }); },
+  estudioEscolha(el) { const { campo: c, valor: v } = el.dataset; mudarEstudio((e) => { e[c] = e[c] === v ? '' : v; }); },
+  verTodosMoldes() { verTodosMoldes = !verTodosMoldes; verMoldeId = ''; redesenhar(); },
+  estudioFavorito(el) {
+    const id = el.dataset.id;
+    const atual = [...idsFavoritos()];
+    if (atual.includes(id)) atual.splice(atual.indexOf(id), 1);
+    else if (atual.length >= E.MAX_FAVORITOS) { aviso(`Já tem ${E.MAX_FAVORITOS} moldes. Tire um antes de pôr outro.`); return; }
+    else atual.push(id);
+    S.mudar((s) => { s.ajustes.moldesFavoritos = atual; });
+    redesenhar();
+  },
+  estudioApagarImg(el) {
+    const id = el.dataset.id;
+    const p = st().posts.find((x) => x.id === rota().args[0]);
+    const im = E.estudioDe(p).imagens.find((x) => x.id === id);
+    if (!im || !confirm('Apagar esta imagem do post?')) return;
+    mudarEstudio((e) => { e.imagens = e.imagens.filter((x) => x.id !== id); });
+    N.apagarImagem(im.caminho);
+  },
   verMolde(el) { verMoldeId = el.dataset.id; redesenhar(); if (verMoldeId) window.scrollTo({ top: 0, behavior: 'smooth' }); },
-  estudioMolde(el) { mudarEstudio((e) => { e.molde = el.dataset.id; }); if (el.dataset.id) aviso('Molde escolhido'); },
-  estudioMaisParte() { mudarEstudio((e) => { e.meio.push(''); }); },
+  estudioMolde(el) { mudarEstudio((e) => { e.molde = el.dataset.id; }); aviso(el.dataset.id ? 'Molde escolhido' : 'Molde tirado'); },
+  estudioMaisParte() { mudarEstudio((e) => { e.meio.push(''); e.cenas.push(''); }); },
   estudioGancho(el) { mudarEstudio((e) => { e.gancho = Number(el.dataset.i); }); },
-  estudioCheck(el) { mudarEstudio((e) => { e.check[el.dataset.id] = !e.check[el.dataset.id]; }); },
+  postCheck(el) { mudarEstudio((e) => { e.check[el.dataset.id] = !e.check[el.dataset.id]; }, false); const y = window.scrollY; render(); window.scrollTo(0, y); },
   estudioTrecho() { janela._destinoPauta = null; janela._destinoEstudio = true; janelaTrechos(); },
   estudioClaude() {
     const p = st().posts.find((x) => x.id === rota().args[0]);
@@ -1539,6 +1666,7 @@ const acoes = {
     redesenhar();
   },
   verPostados() { verPostados = !verPostados; redesenhar(); },
+  abrirGrupo(el) { const { tipo, id } = el.dataset; const g = grupoAberto[tipo]; if (g.has(id)) g.delete(id); else g.add(id); redesenhar(); },
   verTodasIdeias() { verTodasIdeias = true; redesenhar(); },
   copiarTexto() {
     const titulo = ($('.titulo-editor') || {}).value || '';
@@ -1772,6 +1900,11 @@ document.addEventListener('input', (e) => {
     mudarEstudio((e) => { if (i !== undefined) e[c][Number(i)] = el.value; else e[c] = el.value; }, false);
     return;
   }
+  if (el.dataset.imgNota) {
+    const id = el.dataset.imgNota;
+    mudarEstudio((e) => { const im = e.imagens.find((x) => x.id === id); if (im) im.nota = el.value; }, false);
+    return;
+  }
   if (el.matches('textarea.titulo-editor, textarea.cresce')) ajustarAltura(el);
   if (el.matches('[data-busca]')) {
     const v = el.value;
@@ -1814,6 +1947,8 @@ document.addEventListener('change', (e) => {
     set((s) => { s.clube.livroAtual = el.value; const l = s.livros.find((x) => x.id === el.value); if (l && l.situacao !== 'lido') { l.situacao = 'lendo'; l.inicio = l.inicio || hoje(); } s.clube.proximos = s.clube.proximos.filter((x) => x !== el.value); }, true);
   } else if (el.matches('[data-add-proximo]') && el.value) {
     set((s) => { s.clube.proximos.push(el.value); }, true);
+  } else if (el.matches('[data-img-post]')) {
+    adicionarImagens(el.files); el.value = '';
   } else if (el.matches('[data-capa]')) {
     trocarCapa(el.dataset.capa, el.files[0]);
   } else if (el.matches('[data-restaurar]')) {
@@ -1843,14 +1978,17 @@ document.addEventListener('change', (e) => {
 });
 // Colar no editor: só texto, sem formatação estranha.
 document.addEventListener('paste', (e) => {
+  const imgs = [...((e.clipboardData && e.clipboardData.files) || [])].filter((f) => f.type.startsWith('image/'));
+  if (imgs.length && rota().nome === 'estudio' && $('[data-zona-imagens]')) { e.preventDefault(); adicionarImagens(imgs); return; }
   if (!e.target.closest('.editor')) return;
   e.preventDefault();
   const texto = (e.clipboardData || window.clipboardData).getData('text/plain');
   document.execCommand('insertText', false, texto);
 });
 // Arrastar imagem para a capa.
-document.addEventListener('dragover', (e) => { if (e.target.closest('.capa')) e.preventDefault(); });
+document.addEventListener('dragover', (e) => { if (e.target.closest('.capa, [data-zona-imagens]')) e.preventDefault(); });
 document.addEventListener('drop', (e) => {
+  if (e.target.closest('[data-zona-imagens]')) { e.preventDefault(); adicionarImagens(e.dataTransfer.files); return; }
   const c = e.target.closest('.capa');
   const id = rota().nome === 'livro' ? rota().args[0] : null;
   if (!c || !id) return;

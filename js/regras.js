@@ -196,6 +196,15 @@ export function mostrarAvisoFimDoDia(tarefas, hoje, horaAtual, horario, dispensa
 export const etapasFeitas = (aula, etapas) => etapas.filter((e) => aula.etapas && aula.etapas[e.id]).length;
 export const pronta = (aula, etapas) => etapas.length > 0 && etapasFeitas(aula, etapas) === etapas.length;
 export const proximaEtapa = (aula, etapas) => etapas.find((e) => !(aula.etapas && aula.etapas[e.id])) || null;
+// Em que ponto a aula está: 0 = só a ideia; n = as n primeiras etapas feitas; etapas.length = pronta.
+export function pontoDaAula(aula, etapas) {
+  const p = proximaEtapa(aula, etapas);
+  return p ? etapas.indexOf(p) : etapas.length;
+}
+export function gruposAulas(aulas, etapas) {
+  const nomes = ['Só a ideia', ...etapas.slice(0, -1).map((e) => e.nome), 'Prontas'];
+  return nomes.map((nome, i) => ({ id: String(i), nome, itens: aulas.filter((a) => pontoDaAula(a, etapas) === i) }));
+}
 export function aulasDaSemana(aulas, hoje) { const seg = segunda(hoje); return aulas.filter((a) => a.semana === seg); }
 export function aulasAtrasadas(aulas, etapas, hoje) { const seg = segunda(hoje); return aulas.filter((a) => a.semana && a.semana < seg && !pronta(a, etapas)); }
 export function resumoAulas(aulas, etapas, hoje) {
@@ -222,9 +231,9 @@ export function candidatosIdeia(posts, livros, hoje, recentes = {}) {
   const trechos = [];
   livros.forEach((l) => (l.trechos || []).filter((t) => t.conteudo && !recente(t.id))
     .forEach((t) => trechos.push({ id: t.id, tipo: 'trecho', livroId: l.id, trechoId: t.id, tema: t.texto, livro: l.nome, autor: l.autor })));
-  // Intercala: ideia, roteiro, ideia, trecho... para variar.
+  // Roteiro pronto vem primeiro (incentivo para gravar); depois intercala ideia, roteiro, ideia, trecho.
   const r = [];
-  const filas = [ideias, roteiros, ideias, trechos];
+  const filas = [roteiros, ideias, roteiros, ideias, trechos];
   let k = 0;
   while (ideias.length || roteiros.length || trechos.length) {
     const f = filas[k++ % filas.length];
@@ -241,7 +250,7 @@ export function mostrarIdeiaDoDia({ ligada, posts, aulas, etapas, hoje, hojeNao 
 export function frasesIdeia(c, nomeFormato) {
   const onde = nomeFormato || 'Stories';
   if (c.tipo === 'ideia') return { frase: `Que tal escrever o roteiro de “${c.tema}”?`, extra: `Para ${onde}.` };
-  if (c.tipo === 'gravar') return { frase: `Que tal gravar “${c.tema}” hoje?`, extra: 'O roteiro já está pronto.' };
+  if (c.tipo === 'gravar') return { frase: `Que tal gravar “${c.tema}” hoje?`, extra: 'O roteiro já está pronto, esperando você.' };
   return { frase: `Que tal comentar nos Stories este trecho de ${c.livro}?`, extra: `“${c.tema}”` };
 }
 

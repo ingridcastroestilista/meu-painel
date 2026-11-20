@@ -38,7 +38,13 @@ async function pedir(caminho, { metodo = 'GET', corpo, token, extra = {} } = {})
 }
 
 function sessaoDe(r) {
-  return { token: r.access_token, renovar: r.refresh_token, expira: Date.now() + (r.expires_in || 3600) * 1000, email: r.user && r.user.email };
+  return { token: r.access_token, renovar: r.refresh_token, expira: Date.now() + (r.expires_in || 3600) * 1000, email: r.user && r.user.email, uid: r.user && r.user.id };
+}
+
+// Id da conta (pasta das imagens). Sessões antigas não guardavam: lê de dentro do token.
+function uid() {
+  if (sessao.uid) return sessao.uid;
+  try { return JSON.parse(atob(sessao.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub; } catch { return ''; }
 }
 
 export async function entrar(mail, senha) {
@@ -62,7 +68,7 @@ async function token() {
   if (Date.now() < sessao.expira - 60000) return sessao.token;
   try {
     const r = await pedir('/auth/v1/token?grant_type=refresh_token', { metodo: 'POST', corpo: { refresh_token: sessao.renovar } });
-    guardarSessao({ ...sessaoDe(r), email: sessao.email });
+    guardarSessao({ ...sessaoDe(r), email: sessao.email, uid: (r.user && r.user.id) || sessao.uid });
     return sessao.token;
   } catch (e) {
     if (e.status === 400 || e.status === 401) { guardarSessao(null); throw new Error('Entre de novo na sua conta'); }
@@ -148,4 +154,47 @@ export function comecar() {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
   window.addEventListener('online', sincronizar);
   setInterval(() => { if (document.visibilityState === 'visible') sincronizar(); }, 60000);
+}
+
+// ---------- Imagens dos posts ----------
+// Ficam numa pasta só da dona (regra no Supabase). Cada aparelho guarda uma cópia para ver sem internet.
+const base = () => NUVEM.url.replace(/\/$/, '') + '/storage/v1/object';
+const CACHE_IMG = 'painel-imagens'; // não começa com "mp-": o sw.js não apaga ao atualizar
+const vistas = new Map();
+
+export async function enviarImagem(blob, id) {
+  if (!configurada() || !sessao) throw new Error('Entre na sua conta (Ajustes) para guardar imagens.');
+  const tk = await token();
+  const caminho = `${uid()}/${id}.jpg`;
+  const res = await fetch(`${base()}/imagens/${caminho}`, { method: 'POST', headers: { apikey: NUVEM.chave, Authorization: `Bearer ${tk}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: blob });
+  if (!res.ok) throw new Error(`Não consegui guardar a imagem (erro ${res.status}).`);
+  try { (await caches.open(CACHE_IMG)).put(`/img/${caminho}`, new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } })); } catch { /* sem cache: segue */ }
+  vistas.set(caminho, URL.createObjectURL(blob));
+  return caminho;
+}
+
+// Endereço para mostrar a imagem (da cópia do aparelho ou baixada da nuvem).
+export async function verImagem(caminho) {
+  if (vistas.has(caminho)) return vistas.get(caminho);
+  let blob = null;
+  try { const c = await (await caches.open(CACHE_IMG)).match(`/img/${caminho}`); if (c) blob = await c.blob(); } catch { /* segue */ }
+  if (!blob) {
+    if (!sessao) return '';
+    const tk = await token();
+    const res = await fetch(`${base()}/authenticated/imagens/${caminho}`, { headers: { apikey: NUVEM.chave, Authorization: `Bearer ${tk}` } });
+    if (!res.ok) return '';
+    blob = await res.blob();
+    try { (await caches.open(CACHE_IMG)).put(`/img/${caminho}`, new Response(blob.slice(0, blob.size, 'image/jpeg'))); } catch { /* segue */ }
+  }
+  const url = URL.createObjectURL(blob);
+  vistas.set(caminho, url);
+  return url;
+}
+
+export async function apagarImagem(caminho) {
+  vistas.delete(caminho);
+  try { (await caches.open(CACHE_IMG)).delete(`/img/${caminho}`); } catch { /* segue */ }
+  if (!sessao) return;
+  const tk = await token();
+  await fetch(`${base()}/imagens/${caminho}`, { method: 'DELETE', headers: { apikey: NUVEM.chave, Authorization: `Bearer ${tk}` } }).catch(() => {});
 }

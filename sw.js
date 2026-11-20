@@ -1,13 +1,13 @@
 // Guarda o app para abrir sem internet.
 // Ao publicar uma versão nova, mude VERSAO para o aparelho baixar os arquivos novos.
-const VERSAO = 'mp-v5';
+const VERSAO = 'mp-v6';
 const ARQUIVOS = [
   './', 'index.html', 'css/app.css', 'js/app.js', 'js/regras.js', 'js/store.js', 'js/estudio.js', 'js/moldes.js', 'js/juntar.js', 'js/nuvem.js', 'js/nuvem-config.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS.map((a) => new Request(a, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
