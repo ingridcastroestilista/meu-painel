@@ -483,6 +483,14 @@ function iniciarFoco(texto, tarefaId) {
   desenharFoco();
 }
 const pomo = () => st().ajustes.pomodoro;
+// Tarefa de prazo de aula concluída: marca a etapa da aula como pronta.
+function etapaFeitaPelaTarefa(s, t) {
+  if (!t || !t.aulaId || !t.feitaEm) return;
+  const a = s.aulas.find((x) => x.id === t.aulaId);
+  if (!a) return;
+  a.etapas = a.etapas || {};
+  if (!a.etapas[t.etapa]) { a.etapas[t.etapa] = t.feitaEm; logar('etapas'); }
+}
 // "Vou fazer agora": abre o Pomodoro direto, ligado à tarefa (Concluí marca a tarefa como feita).
 function fazerAgora(id) {
   const t = st().tarefas.find((x) => x.id === id);
@@ -673,7 +681,15 @@ function telaAula(id) {
     <label>Link do PDF<input class="campo" data-campo-aula="pdf" value="${esc(a.pdf || '')}" placeholder="https://…"></label>
     ${a.pdf ? `<a class="link-acao" href="${esc(a.pdf)}" target="_blank" rel="noopener" style="margin-top:16px">Abrir PDF</a>` : ''}
   </div>
-  <div class="etapas nao-imprimir" style="margin-bottom:16px">${L().etapasAula.map((e) => `<button class="etapa ${a.etapas && a.etapas[e.id] ? 'feita' : ''} ${(R.proximaEtapa(a, L().etapasAula) || {}).id === e.id ? 'proxima' : ''}" data-acao="etapa" data-id="${a.id}" data-etapa="${e.id}">${esc(e.nome)}</button>`).join('')}</div>
+  <div class="prazos-aula nao-imprimir">${L().etapasAula.map((e) => {
+    const feita = a.etapas && a.etapas[e.id];
+    const t = R.tarefaDaEtapa(st().tarefas, a.id, e.id);
+    const prazo = t ? t.data : '';
+    const atras = prazo && !feita && prazo < hoje();
+    return `<div class="prazo-etapa"><button class="etapa ${feita ? 'feita' : ''} ${(R.proximaEtapa(a, L().etapasAula) || {}).id === e.id ? 'proxima' : ''}" data-acao="etapa" data-id="${a.id}" data-etapa="${e.id}">${esc(e.nome)}</button>
+      <label class="prazo-campo ${atras ? 'atrasado' : ''}"><span>Prazo</span><input type="date" class="campo" data-prazo-etapa="${e.id}" value="${esc(prazo || '')}"></label>
+      ${prazo && !feita ? `<span class="quando ${atras ? 'q-atraso' : 'q-depois'}">${esc(R.quando(prazo, hoje()))}</span>` : ''}</div>`;
+  }).join('')}<p class="muted dica-prazo">Cada prazo vira uma tarefa com data, que aparece no Hoje. Quando a etapa fica pronta, a tarefa é marcada como feita (e vice-versa).</p></div>
   ${ferramentas}
   <div class="editor" contenteditable="true" data-editor="aula" data-id="${a.id}">${a.texto || ''}</div>`;
 }
@@ -1534,7 +1550,7 @@ const acoes = {
   fecharJanela() { janela.close(); },
   concluir(el) {
     const id = el.dataset.id;
-    S.mudar((s) => { const i = s.tarefas.findIndex((t) => t.id === id); s.tarefas[i] = R.concluir(s.tarefas[i], hoje()); logar('tarefas'); }, { desfazivel: true });
+    S.mudar((s) => { const i = s.tarefas.findIndex((t) => t.id === id); s.tarefas[i] = R.concluir(s.tarefas[i], hoje()); logar('tarefas'); etapaFeitaPelaTarefa(s, s.tarefas[i]); }, { desfazivel: true });
     aviso('Feito', { desfazer: true });
     redesenhar();
   },
@@ -1622,7 +1638,7 @@ const acoes = {
   focoConclui() {
     const f = st().foco;
     S.mudar((s) => {
-      if (f.tarefaId) { const i = s.tarefas.findIndex((t) => t.id === f.tarefaId); if (i >= 0 && R.aberta(s.tarefas[i])) { s.tarefas[i] = R.concluir(s.tarefas[i], hoje()); logar('tarefas'); } }
+      if (f.tarefaId) { const i = s.tarefas.findIndex((t) => t.id === f.tarefaId); if (i >= 0 && R.aberta(s.tarefas[i])) { s.tarefas[i] = R.concluir(s.tarefas[i], hoje()); logar('tarefas'); etapaFeitaPelaTarefa(s, s.tarefas[i]); } }
       s.foco = null;
     });
     desenharFoco(); aviso('Muito bem.'); redesenhar();
@@ -1704,7 +1720,8 @@ const acoes = {
     S.mudar((s) => {
       const a = s.aulas.find((x) => x.id === id);
       a.etapas = a.etapas || {};
-      if (a.etapas[etapa]) { delete a.etapas[etapa]; logar('etapas', -1); } else { a.etapas[etapa] = hoje(); logar('etapas'); }
+      const t = s.tarefas.find((x) => x.aulaId === id && x.etapa === etapa);
+      if (a.etapas[etapa]) { delete a.etapas[etapa]; logar('etapas', -1); if (t && t.feitaEm) delete t.feitaEm; } else { a.etapas[etapa] = hoje(); logar('etapas'); if (t && !t.feitaEm) t.feitaEm = hoje(); }
     });
     redesenhar();
   },
@@ -1967,12 +1984,27 @@ document.addEventListener('change', (e) => {
   if (el.dataset.campoProjeto) {
     const c = el.dataset.campoProjeto;
     set((s) => { const p = s.projetos.find((x) => x.id === rota().args[0]); p[c] = el.type === 'checkbox' ? el.checked : (c === 'nome' ? el.value.trim() || p.nome : el.value); }, c !== 'notas');
+  } else if (el.dataset.prazoEtapa) {
+    const aulaId = rota().args[0];
+    S.mudar((s) => {
+      const a = s.aulas.find((x) => x.id === aulaId);
+      const etapa = s.listas.etapasAula.find((x) => x.id === el.dataset.prazoEtapa);
+      if (!a || !etapa) return;
+      const proj = s.projetos.find((p) => a.produto && p.produto === a.produto && !p.arquivado);
+      s.tarefas = R.definirPrazo(s.tarefas, a, etapa, el.value, { id: S.uid(), criadaEm: S.agora(), categoria: (s.listas.categorias[0] || {}).id || '', projeto: proj ? proj.id : '' });
+    });
+    aviso(el.value ? 'Prazo marcado. Ele aparece no Hoje no dia.' : 'Prazo tirado');
+    redesenhar();
   } else if (el.dataset.campoAula) {
     const c = el.dataset.campoAula;
     let v = el.value;
     if (c === 'semana' && v) v = R.segunda(v);
     if (c === 'pdf' && v && !/^[a-z]+:/i.test(v)) v = `https://${v}`;
-    set((s) => { s.aulas.find((x) => x.id === rota().args[0])[c] = v; }, c === 'semana' || c === 'pdf');
+    set((s) => {
+      const a = s.aulas.find((x) => x.id === rota().args[0]);
+      a[c] = v;
+      if (c === 'titulo') s.tarefas.forEach((t) => { if (t.aulaId === a.id && !t.feitaEm) { const e = s.listas.etapasAula.find((x) => x.id === t.etapa); if (e) t.texto = R.textoPrazo(a, e); } });
+    }, c === 'semana' || c === 'pdf');
   } else if (el.dataset.campoPost) {
     const c = el.dataset.campoPost;
     set((s) => { s.posts.find((x) => x.id === rota().args[0])[c] = el.value; });

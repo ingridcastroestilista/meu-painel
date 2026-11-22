@@ -341,3 +341,21 @@ export function vitorias(estado, hoje) {
   const habitos = ((estado.habitosFeitos || {})[hoje] || []).length;
   return (log.tarefas || 0) + habitos + (log.inicios || 0) + (log.pomodoros || 0) + (log.etapas || 0);
 }
+
+// ---------- Prazos das etapas das aulas ----------
+// Cada prazo vira uma tarefa com data (aparece no Hoje), ligada à aula pela etapa.
+const VERBOS_ETAPA = { roteiro: 'Escrever o roteiro', pdf: 'Fazer o PDF', gravada: 'Gravar', gravar: 'Gravar', editada: 'Editar', editar: 'Editar', postada: 'Postar', postar: 'Postar' };
+export function textoPrazo(aula, etapa) {
+  const chave = String(etapa.nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const verbo = VERBOS_ETAPA[chave] || etapa.nome;
+  return `${verbo}: ${aula.titulo || 'aula sem título'}`;
+}
+export const tarefaDaEtapa = (tarefas, aulaId, etapaId) => tarefas.find((t) => t.aulaId === aulaId && t.etapa === etapaId) || null;
+
+// Põe, muda ou tira o prazo de uma etapa. Devolve a lista de tarefas nova.
+export function definirPrazo(tarefas, aula, etapa, data, extra = {}) {
+  const atual = tarefaDaEtapa(tarefas, aula.id, etapa.id);
+  if (!data) return atual && !atual.feitaEm ? tarefas.filter((t) => t !== atual) : tarefas;
+  if (atual) return tarefas.map((t) => (t === atual ? { ...t, texto: textoPrazo(aula, etapa), quando: 'data', data, semanaFim: null } : t));
+  return [...tarefas, { texto: textoPrazo(aula, etapa), classificada: true, quando: 'data', data, aulaId: aula.id, etapa: etapa.id, ...extra }];
+}
