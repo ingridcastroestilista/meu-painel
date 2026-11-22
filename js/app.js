@@ -989,7 +989,7 @@ function telaLeituras(aba = 'estante', encontroId = '') {
       <div class="barra"><i style="width:${R.progressoLivro(l)}%"></i></div><div class="muted" style="font-size:12.5px">${l.paginas ? `${R.progressoLivro(l)}% · página ${l.paginaAtual || 0} de ${l.paginas}` : 'Informe o total de páginas no livro'}</div>
       <form class="linha" data-form="pagina" data-id="${l.id}" style="margin-top:10px"><input class="campo" name="pagina" type="number" min="0" placeholder="Parei na página…" style="width:150px"><button class="btn btn-pequeno" type="submit">Atualizar</button></form></div></div>`).join('')}</div>` : '<p class="vazio">Nenhum livro em leitura.</p>'}
   </section>
-  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(porSit(id))}</section>`).join('')}`}`;
+  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(id === 'lido' ? R.lidosRecentesPrimeiro(porSit(id)) : porSit(id))}</section>`).join('')}`}`;
 }
 function telaClube(encontroId) {
   const s = st();

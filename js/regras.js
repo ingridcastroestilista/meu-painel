@@ -259,6 +259,8 @@ export function progressoLivro(l) {
   if (!l.paginas) return 0;
   return Math.max(0, Math.min(100, Math.round(((l.paginaAtual || 0) / l.paginas) * 100)));
 }
+// Lidos: os terminados mais recentemente primeiro; sem data de término, no fim.
+export const lidosRecentesPrimeiro = (livros) => [...livros].sort((a, b) => (b.fim || '').localeCompare(a.fim || ''));
 export function lidosNoAno(livros, ano) { return livros.filter((l) => l.situacao === 'lido' && l.fim && l.fim.startsWith(String(ano))).length; }
 export function proximoEncontro(encontros, hoje) {
   return [...(encontros || [])].filter((e) => e.data && e.data >= hoje).sort((a, b) => a.data.localeCompare(b.data))[0] || null;
