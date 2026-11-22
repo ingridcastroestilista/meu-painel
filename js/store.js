@@ -91,6 +91,8 @@ function completar(d) {
   r.ajustes.pomodoro = { ...base.ajustes.pomodoro, ...((d.ajustes || {}).pomodoro || {}) };
   r.listas = { ...base.listas, ...(d.listas || {}) };
   r.clube = { ...base.clube, ...(d.clube || {}) };
+  // Encontros criados antes de guardar o livro: ficam com o livro do clube daquela época (o atual).
+  if (r.clube.livroAtual) r.clube.encontros = (r.clube.encontros || []).map((e) => (e.livroId ? e : { ...e, livroId: r.clube.livroAtual }));
   r.ideia = { ...base.ideia, ...(d.ideia || {}) };
   r.avisos = { ...base.avisos, ...(d.avisos || {}) };
   if (!Array.isArray(d.projetos)) r.projetos = projetosPadrao(r.listas);

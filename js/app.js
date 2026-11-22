@@ -944,6 +944,12 @@ let buscaLivro = '';
 // Livro do clube escolhido no campo com busca (livro atual ou próximos).
 function escolherLivroClube(el) {
   if (!el.value.trim()) return;
+  if (el.dataset.encontroLivro) {
+    const id = livroPeloNome(el.value);
+    if (!id) { aviso('Não achei esse livro na estante.'); return; }
+    S.mudar((s) => { const e = s.clube.encontros.find((x) => x.id === el.dataset.encontroLivro); if (e) e.livroId = id; });
+    el.blur(); aviso('Livro do encontro trocado'); redesenhar(); return;
+  }
   const id = livroPeloNome(el.value);
   if (!id) { aviso('Não achei esse livro na estante.'); return; }
   const c = st().clube;
@@ -967,7 +973,7 @@ const livroPeloNome = (nome) => { const q = semAcento(String(nome).trim()); cons
 const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 function telaLeituras(aba = 'estante', encontroId = '') {
   const abas = `<div class="abas"><a href="#/leituras/estante" class="${aba === 'estante' ? 'sel' : ''}">Estante</a><a href="#/leituras/clube" class="${aba === 'clube' ? 'sel' : ''}">Clube do Livro</a><a href="#/leituras/trechos" class="${aba === 'trechos' ? 'sel' : ''}">Trechos</a></div>`;
-  if (aba === 'clube') return abas + telaClube(encontroId);
+  if (aba === 'clube') return abas + (encontroId ? telaEncontro(encontroId) : telaClube());
   if (aba === 'trechos') return abas + telaTrechos();
   const s = st();
   const ano = new Date().getFullYear();
@@ -991,7 +997,28 @@ function telaLeituras(aba = 'estante', encontroId = '') {
   </section>
   ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(id === 'lido' ? R.lidosRecentesPrimeiro(porSit(id)) : porSit(id))}</section>`).join('')}`}`;
 }
-function telaClube(encontroId) {
+let encontrosAbertos = false;
+// Página de um encontro do clube: data, até onde ler, pauta e como foi.
+function telaEncontro(id) {
+  const s = st();
+  const e = s.clube.encontros.find((x) => x.id === id);
+  if (!e) return '<p class="vazio">Encontro não encontrado. <a href="#/leituras/clube">Voltar</a></p>';
+  const lv = s.livros.find((l) => l.id === e.livroId);
+  return `<div class="editor-topo"><a class="btn-3" href="#/leituras/clube">← Clube do Livro</a><span class="espaco"></span><button class="btn btn-perigo btn-pequeno" data-acao="apagarEncontro" data-id="${e.id}">Apagar encontro</button></div>
+  <div class="topo" style="margin-bottom:16px"><div><p class="rot-estudio">Encontro do clube</p><h1>${e.data ? esc(R.dataPorExtenso(e.data)) : 'Encontro sem data'}</h1>${lv ? `<p class="muted" style="margin:2px 0 0">${esc(lv.nome)}${lv.autor ? ` · ${esc(lv.autor)}` : ''}</p>` : ''}</div></div>
+  <div class="grade-2"><section class="cartao"><div style="display:grid;gap:12px">
+    <label class="muted" style="font-size:12px">Livro do encontro<input class="campo" type="search" list="lista-livros" data-encontro-livro="${e.id}" value="${esc(lv ? lv.nome : '')}" placeholder="🔍 Digite o nome do livro…" style="width:100%" autocomplete="off"></label>
+    <datalist id="lista-livros">${s.livros.map((l) => `<option value="${esc(l.nome)}">${esc(l.autor || '')}</option>`).join('')}</datalist>
+    <div class="duas"><label class="muted" style="font-size:12px">Data<input type="date" class="campo" data-encontro="${e.id}" data-campo="data" value="${esc(e.data || '')}" style="width:100%"></label>
+    <label class="muted" style="font-size:12px">Horário<input type="time" class="campo" data-encontro="${e.id}" data-campo="hora" value="${esc(e.hora || '')}" style="width:100%"></label></div>
+    <div class="duas"><label class="muted" style="font-size:12px">Até a página<input type="number" class="campo" data-encontro="${e.id}" data-campo="atePagina" value="${esc(e.atePagina || '')}" style="width:100%"></label>
+    <label class="muted" style="font-size:12px">Observação (ex.: até o capítulo 8)<input class="campo" data-encontro="${e.id}" data-campo="obs" value="${esc(e.obs || '')}" style="width:100%"></label></div>
+    <label class="muted" style="font-size:12px">Pauta: perguntas, trechos e observações<textarea class="campo cresce" data-encontro="${e.id}" data-campo="pauta" rows="10">${esc(e.pauta || '')}</textarea></label>
+    <div class="linha"><button class="btn btn-2 btn-pequeno" data-acao="puxarTrecho" data-id="${e.id}">❝ Puxar trecho do livro</button></div>
+  </div></section>
+  <div><section class="cartao"><h2>Como foi</h2><textarea class="campo cresce" data-encontro="${e.id}" data-campo="comoFoi" rows="6" placeholder="Depois do encontro: o que rendeu, quem participou, o que levar para o próximo…">${esc(e.comoFoi || '')}</textarea></section></div></div>`;
+}
+function telaClube() {
   const s = st();
   const d = hoje();
   const c = s.clube;
@@ -1011,18 +1038,19 @@ function telaClube(encontroId) {
           : '<p class="muted" style="margin:0">Nenhum encontro marcado.</p>'}
       </div></div></section>
       <section class="secao"><h2 style="margin-bottom:10px">Encontros</h2>
-        ${encontros.length ? encontros.map((e) => `<details class="cartao" ${e.id === encontroId || (prox && e.id === prox.id && !encontroId) ? 'open' : ''} style="margin-bottom:12px">
-          <summary style="cursor:pointer"><b>${e.data ? esc(R.dataPorExtenso(e.data)) : 'Sem data'}</b> <span class="muted">${e.atePagina ? `· até a pág. ${esc(e.atePagina)}` : ''} ${e.obs ? `· ${esc(e.obs)}` : ''}</span> ${e.data && e.data < d ? '<span class="tag v">Feito</span>' : ''}</summary>
-          <div style="display:grid;gap:10px;margin-top:12px">
-            <div class="duas"><label class="muted" style="font-size:12px">Data<input type="date" class="campo" data-encontro="${e.id}" data-campo="data" value="${esc(e.data || '')}" style="width:100%"></label>
-            <label class="muted" style="font-size:12px">Até a página<input type="number" class="campo" data-encontro="${e.id}" data-campo="atePagina" value="${esc(e.atePagina || '')}" style="width:100%"></label></div>
-            <label class="muted" style="font-size:12px">Horário<input type="time" class="campo" data-encontro="${e.id}" data-campo="hora" value="${esc(e.hora || '')}" style="width:140px"></label>
-            <label class="muted" style="font-size:12px">Observação (ex.: até o capítulo 8)<input class="campo" data-encontro="${e.id}" data-campo="obs" value="${esc(e.obs || '')}" style="width:100%"></label>
-            <label class="muted" style="font-size:12px">Pauta: perguntas, trechos e observações<textarea class="campo" data-encontro="${e.id}" data-campo="pauta" rows="6">${esc(e.pauta || '')}</textarea></label>
-            <div class="linha"><button class="btn btn-2 btn-pequeno" data-acao="puxarTrecho" data-id="${e.id}">❝ Puxar trecho do livro</button></div>
-            <label class="muted" style="font-size:12px">Como foi<textarea class="campo" data-encontro="${e.id}" data-campo="comoFoi" rows="3">${esc(e.comoFoi || '')}</textarea></label>
-            <div class="linha"><span class="espaco"></span><button class="btn btn-perigo btn-pequeno" data-acao="apagarEncontro" data-id="${e.id}">Apagar encontro</button></div>
-          </div></details>`).join('') : '<p class="vazio">Crie o primeiro encontro com a data que quiser.</p>'}
+        ${encontros.length ? (() => {
+          const futuros = encontros.filter((e) => !e.data || e.data >= d).sort((x, y) => (x.data || '9').localeCompare(y.data || '9'));
+          const passados = encontros.filter((e) => e.data && e.data < d); // já vem do mais recente para o mais antigo
+          const linhaEnc = (e) => {
+            const lv = e.livroId ? s.livros.find((l) => l.id === e.livroId) : null;
+            const info = [lv && lv.nome, e.atePagina && `até a pág. ${e.atePagina}`, e.obs].filter(Boolean).join(' · ');
+            const tag = !e.data ? '<span class="tag">Sem data</span>' : e.data < d ? '<span class="tag v">Feito</span>' : prox && e.id === prox.id ? '<span class="quando q-amanha">Próximo</span>' : '';
+            return `<li class="item"><div class="principal" data-acao="irEncontro" data-id="${e.id}"><b>${e.data ? esc(R.dataPorExtenso(e.data)) : 'Encontro sem data'}${e.data && e.data.slice(0, 4) !== d.slice(0, 4) ? ` de ${e.data.slice(0, 4)}` : ''}${e.hora ? ` · ${esc(e.hora)}` : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}</div>${tag}<span class="seta-item" aria-hidden="true">›</span></li>`;
+          };
+          const verTodos = encontrosAbertos;
+          return `${futuros.length ? `<section class="cartao"><h2>Próximos</h2><ul class="lista">${futuros.map(linhaEnc).join('')}</ul></section>` : ''}
+            ${passados.length ? `<section class="cartao" style="margin-top:14px"><h2>Já aconteceram</h2><ul class="lista">${(verTodos ? passados : passados.slice(0, 1)).map(linhaEnc).join('')}</ul>${passados.length > 1 ? `<button class="mais-links" data-acao="verEncontros">${verTodos ? 'Mostrar só o último' : 'Ver os outros'}</button>` : ''}</section>` : ''}`;
+        })() : '<p class="vazio">Crie o primeiro encontro com a data que quiser.</p>'}
       </section>
     </div>
     <div><section class="cartao"><h2>Próximos livros do clube</h2>
@@ -1107,6 +1135,11 @@ function telaLivro(id) {
       ${l.paginas ? `<div class="barra" style="max-width:380px"><i style="width:${R.progressoLivro(l)}%"></i></div><span class="muted" style="font-size:13px">${R.progressoLivro(l)}%</span>` : ''}
     </div>
   </div>
+  ${(() => {
+    const encs = st().clube.encontros.filter((e) => e.livroId === l.id).sort((a, b) => (a.data || '9').localeCompare(b.data || '9'));
+    if (!encs.length) return '';
+    return `<section class="cartao" style="margin:18px 0"><h2>Encontros do clube</h2><ul class="lista">${encs.map((e) => `<li class="item"><div class="principal" data-acao="irEncontro" data-id="${e.id}"><b>${e.data ? esc(R.dataPorExtenso(e.data)) : 'Encontro sem data'}${e.data && e.data.slice(0, 4) !== hoje().slice(0, 4) ? ` de ${e.data.slice(0, 4)}` : ''}</b><small>${esc([e.atePagina && `até a pág. ${e.atePagina}`, e.obs].filter(Boolean).join(' · '))}</small></div>${e.data && e.data < hoje() ? '<span class="tag v">Feito</span>' : ''}<span class="seta-item" aria-hidden="true">›</span></li>`).join('')}</ul></section>`;
+  })()}
   <div class="grade-campos-livro">
     ${CAMPOS_LIVRO.map(([c, titulo, dica]) => `<section class="cartao"><h2>${titulo}</h2><textarea class="campo cresce" data-campo-livro="${c}" rows="4" placeholder="${dica}">${esc(l[c] || '')}</textarea></section>`).join('')}
   </div>
@@ -1793,11 +1826,16 @@ const acoes = {
   apagarTrecho(el) { S.mudar((s) => { const l = s.livros.find((x) => x.id === el.dataset.id); l.trechos = l.trechos.filter((x) => x.id !== el.dataset.t); }, { desfazivel: true }); aviso('Trecho apagado', { desfazer: true }); redesenhar(); },
   novoEncontro() {
     const id = S.uid();
-    S.mudar((s) => { s.clube.encontros.push({ id, data: '', atePagina: '', obs: '', pauta: '', comoFoi: '' }); });
+    S.mudar((s) => { s.clube.encontros.push({ id, data: '', atePagina: '', obs: '', pauta: '', comoFoi: '', livroId: s.clube.livroAtual || '' }); });
     location.hash = `#/leituras/clube/${id}`;
     setTimeout(() => { const i = $(`[data-encontro="${id}"][data-campo=data]`); if (i) i.focus(); }, 60);
   },
-  apagarEncontro(el) { S.mudar((s) => { s.clube.encontros = s.clube.encontros.filter((x) => x.id !== el.dataset.id); }, { desfazivel: true }); aviso('Encontro apagado', { desfazer: true }); redesenhar(); },
+  apagarEncontro(el) {
+    S.mudar((s) => { s.clube.encontros = s.clube.encontros.filter((x) => x.id !== el.dataset.id); }, { desfazivel: true });
+    aviso('Encontro apagado', { desfazer: true });
+    if (location.hash !== '#/leituras/clube') location.hash = '#/leituras/clube'; else redesenhar();
+  },
+  verEncontros() { encontrosAbertos = !encontrosAbertos; redesenhar(); },
   puxarTrecho(el) { janela._destinoEstudio = false; janela._destinoPauta = el.dataset.id; janelaTrechos(); },
   moverProximo(el) {
     S.mudar((s) => { const a = s.clube.proximos; const i = a.indexOf(el.dataset.id); const j = i + Number(el.dataset.d); if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; });
@@ -1961,7 +1999,7 @@ document.addEventListener('input', (e) => {
     return;
   }
   // Escolheu um livro da lista: confirma na hora (sem precisar sair do campo).
-  if (el.matches('[data-clube-livro], [data-add-proximo]') && livroPeloNome(el.value) && (!e.inputType || e.inputType === 'insertReplacementText')) { escolherLivroClube(el); return; }
+  if (el.matches('[data-clube-livro], [data-add-proximo], [data-encontro-livro]') && livroPeloNome(el.value) && (!e.inputType || e.inputType === 'insertReplacementText')) { escolherLivroClube(el); return; }
   if (el.dataset.imgNota) {
     const id = el.dataset.imgNota;
     mudarEstudio((e) => { const im = e.imagens.find((x) => x.id === id); if (im) im.nota = el.value; }, false);
@@ -1980,7 +2018,7 @@ document.addEventListener('input', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target;
-  const set = (fn, re = false) => { S.mudar(fn); if (re) redesenhar(); };
+  const set = (fn, re = false) => { S.mudar(fn); if (re) (el.type === 'date' ? redesenharQuandoLivre() : redesenhar()); }; // datas: não fecha o calendário no meio da escolha
   if (el.dataset.campoProjeto) {
     const c = el.dataset.campoProjeto;
     set((s) => { const p = s.projetos.find((x) => x.id === rota().args[0]); p[c] = el.type === 'checkbox' ? el.checked : (c === 'nome' ? el.value.trim() || p.nome : el.value); }, c !== 'notas');
@@ -1993,8 +2031,7 @@ document.addEventListener('change', (e) => {
       const proj = s.projetos.find((p) => a.produto && p.produto === a.produto && !p.arquivado);
       s.tarefas = R.definirPrazo(s.tarefas, a, etapa, el.value, { id: S.uid(), criadaEm: S.agora(), categoria: (s.listas.categorias[0] || {}).id || '', projeto: proj ? proj.id : '' });
     });
-    aviso(el.value ? 'Prazo marcado. Ele aparece no Hoje no dia.' : 'Prazo tirado');
-    redesenhar();
+    redesenharQuandoLivre(); // espera ela sair do campo: redesenhar fecharia o calendário
   } else if (el.dataset.campoAula) {
     const c = el.dataset.campoAula;
     let v = el.value;
@@ -2021,7 +2058,7 @@ document.addEventListener('change', (e) => {
   } else if (el.dataset.encontro) {
     const c = el.dataset.campo;
     set((s) => { s.clube.encontros.find((x) => x.id === el.dataset.encontro)[c] = c === 'atePagina' ? (el.value === '' ? '' : Number(el.value)) : el.value; }, c === 'data' || c === 'atePagina');
-  } else if (el.matches('[data-clube-livro], [data-add-proximo]')) {
+  } else if (el.matches('[data-clube-livro], [data-add-proximo], [data-encontro-livro]')) {
     escolherLivroClube(el);
   } else if (el.matches('[data-img-post]')) {
     adicionarImagens(el.files); el.value = '';
@@ -2052,6 +2089,8 @@ document.addEventListener('change', (e) => {
     if (el.dataset.muda === 'repetir') ['semana', 'mes', 'ano'].forEach((k) => { $(`[data-mostra="rep-${k}"]`, form).hidden = el.value !== k; });
   }
 });
+// Ao sair de um campo de data, mostra a mudança na hora (enquanto escolhe, a tela não se mexe).
+document.addEventListener('focusout', (e) => { if (e.target.matches && e.target.matches('input[type="date"]')) setTimeout(redesenharQuandoLivre, 60); });
 // Colar no editor: só texto, sem formatação estranha.
 document.addEventListener('paste', (e) => {
   const imgs = [...((e.clipboardData && e.clipboardData.files) || [])].filter((f) => f.type.startsWith('image/'));

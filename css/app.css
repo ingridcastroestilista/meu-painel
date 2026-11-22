@@ -190,6 +190,7 @@ textarea.campo { width: 100%; min-height: 90px; resize: vertical; line-height: 1
 /* ---------- Leituras ---------- */
 .livros-lendo { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .livro-card { display: flex; gap: 16px; }
+.livros-lendo > .cartao + .cartao { margin-top: 0; } /* lado a lado: todos alinhados e da mesma altura */
 .capa { width: 84px; height: 124px; border-radius: 6px; flex: none; object-fit: cover; background: var(--verde-claro); display: grid; place-items: center; text-align: center; padding: 8px; font-family: var(--serif); font-size: 12px; line-height: 1.25; color: var(--texto); overflow: hidden; box-shadow: 0 2px 8px rgba(69,63,60,.12); cursor: pointer; }
 .capa.grande { width: 140px; height: 206px; font-size: 15px; }
 img.capa { padding: 0; } /* foto da capa sem margem; o espaço interno é só para o nome quando não há foto */
@@ -485,3 +486,6 @@ img.sem-imagem { min-height: 60px; }
 .prazo-campo .campo { padding: 4px 8px; font-size: 13px; width: auto; min-height: 0; }
 .prazo-campo.atrasado .campo { border-color: var(--rose-1); }
 .dica-prazo { grid-column: 1 / -1; font-size: 12.5px; margin: 2px 0 0; }
+
+/* Encontros do clube: lista fechada; cada encontro abre na sua página */
+.seta-item { color: var(--texto-2); font-size: 18px; margin-left: 4px; }
