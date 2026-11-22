@@ -924,6 +924,31 @@ let buscaTrecho = '';
 function capa(l, grande = false) {
   return l.capa ? `<img class="capa ${grande ? 'grande' : ''}" src="${l.capa}" alt="">` : `<div class="capa ${grande ? 'grande' : ''}">${esc(l.nome)}</div>`;
 }
+let buscaLivro = '';
+// Livro do clube escolhido no campo com busca (livro atual ou próximos).
+function escolherLivroClube(el) {
+  if (!el.value.trim()) return;
+  const id = livroPeloNome(el.value);
+  if (!id) { aviso('Não achei esse livro na estante.'); return; }
+  const c = st().clube;
+  if (el.matches('[data-add-proximo]')) {
+    if (c.proximos.includes(id) || c.livroAtual === id) { aviso('Esse livro já está no clube.'); el.value = ''; return; }
+    S.mudar((s) => { s.clube.proximos.push(id); });
+  } else {
+    if (c.livroAtual === id) return;
+    S.mudar((s) => {
+      s.clube.livroAtual = id;
+      const l = s.livros.find((x) => x.id === id);
+      if (l && l.situacao !== 'lido') { l.situacao = 'lendo'; l.inicio = l.inicio || hoje(); }
+      s.clube.proximos = s.clube.proximos.filter((x) => x !== id);
+    });
+  }
+  el.blur();
+  redesenhar();
+}
+// Acha o livro pelo nome escolhido na lista (sem diferenciar maiúsculas e acentos).
+const livroPeloNome = (nome) => { const q = semAcento(String(nome).trim()); const l = st().livros.find((x) => semAcento(x.nome) === q); return l ? l.id : ''; };
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 function telaLeituras(aba = 'estante', encontroId = '') {
   const abas = `<div class="abas"><a href="#/leituras/estante" class="${aba === 'estante' ? 'sel' : ''}">Estante</a><a href="#/leituras/clube" class="${aba === 'clube' ? 'sel' : ''}">Clube do Livro</a><a href="#/leituras/trechos" class="${aba === 'trechos' ? 'sel' : ''}">Trechos</a></div>`;
   if (aba === 'clube') return abas + telaClube(encontroId);
@@ -938,13 +963,17 @@ function telaLeituras(aba = 'estante', encontroId = '') {
   return `${abas}
   <div class="topo"><div><h1>Leituras</h1><p>${meta ? `${lidos} de ${meta} livros lidos em ${ano}` : `${lidos} ${lidos === 1 ? 'livro lido' : 'livros lidos'} em ${ano}`} · <button class="link-acao" data-acao="metaLivros">${meta ? 'mudar meta' : 'definir meta do ano'}</button></p>
     ${meta ? `<div class="barra" style="width:260px"><i style="width:${Math.min(100, Math.round((lidos / meta) * 100))}%"></i></div>` : ''}</div>
-    <button class="btn" data-acao="novoLivro">+ Livro</button></div>
-  <section class="secao" style="margin-top:0"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, 'lendo'))}</h2>
+    <div class="linha"><input class="busca" type="search" placeholder="🔍 Buscar livro ou autora…" value="${esc(buscaLivro)}" data-busca="livros"><button class="btn" data-acao="novoLivro">+ Livro</button></div></div>
+  ${buscaLivro.trim() ? (() => {
+    const q = semAcento(buscaLivro.trim());
+    const achados = s.livros.filter((l) => semAcento(`${l.nome} ${l.autor || ''}`).includes(q));
+    return `<section class="secao" style="margin-top:0"><h2 style="margin-bottom:12px">${achados.length ? `${achados.length} ${achados.length === 1 ? 'livro encontrado' : 'livros encontrados'}` : 'Nenhum livro encontrado'}</h2>${achados.length ? `<div class="estante">${achados.map((l) => `<div class="livro" data-acao="irLivro" data-id="${l.id}">${capa(l)}<b>${esc(l.nome)}</b><span class="muted">${esc([l.autor, nomeDe(L().situacoesLivro, l.situacao)].filter(Boolean).join(' · '))}</span></div>`).join('')}</div>` : ''}</section>`;
+  })() : `<section class="secao" style="margin-top:0"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, 'lendo'))}</h2>
     ${lendo.length ? `<div class="livros-lendo">${lendo.map((l) => `<div class="cartao livro-card"><div data-acao="irLivro" data-id="${l.id}">${capa(l)}</div><div style="flex:1;min-width:0"><b data-acao="irLivro" data-id="${l.id}" style="cursor:pointer;font-family:var(--serif);font-size:17px">${esc(l.nome)}</b><div class="muted" style="font-size:13px">${esc(l.autor || '')}</div>
       <div class="barra"><i style="width:${R.progressoLivro(l)}%"></i></div><div class="muted" style="font-size:12.5px">${l.paginas ? `${R.progressoLivro(l)}% · página ${l.paginaAtual || 0} de ${l.paginas}` : 'Informe o total de páginas no livro'}</div>
       <form class="linha" data-form="pagina" data-id="${l.id}" style="margin-top:10px"><input class="campo" name="pagina" type="number" min="0" placeholder="Parei na página…" style="width:150px"><button class="btn btn-pequeno" type="submit">Atualizar</button></form></div></div>`).join('')}</div>` : '<p class="vazio">Nenhum livro em leitura.</p>'}
   </section>
-  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(porSit(id))}</section>`).join('')}`;
+  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(porSit(id))}</section>`).join('')}`}`;
 }
 function telaClube(encontroId) {
   const s = st();
@@ -955,13 +984,12 @@ function telaClube(encontroId) {
   const ritmo = R.ritmoClube(livro, prox, d);
   const encontros = [...c.encontros].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
   const proximos = c.proximos.map((id) => s.livros.find((l) => l.id === id)).filter(Boolean);
-  const opcLivros = (sel) => `<option value="">—</option>${s.livros.map((l) => `<option value="${l.id}" ${l.id === sel ? 'selected' : ''}>${esc(l.nome)}</option>`).join('')}`;
   return `<div class="topo"><div><h1>Clube do Livro</h1></div><button class="btn" data-acao="novoEncontro">+ Encontro</button></div>
   <div class="grade-2">
     <div>
       <section class="cartao"><div class="linha" style="align-items:flex-start;gap:18px">${livro ? `<div data-acao="irLivro" data-id="${livro.id}">${capa(livro)}</div>` : ''}<div class="espaco">
         <label class="muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Livro atual do clube</label>
-        <select class="campo" data-clube-livro style="width:100%;margin:4px 0 12px">${opcLivros(c.livroAtual)}</select>
+        <input class="campo" type="search" list="lista-livros" data-clube-livro value="${esc(livro ? livro.nome : '')}" placeholder="🔍 Digite o nome do livro…" style="width:100%;margin:4px 0 12px" autocomplete="off">
         ${prox ? `<p style="margin:0;font-family:var(--serif);font-size:19px">Próximo encontro: ${esc(R.quando(prox.data, d))}${R.quando(prox.data, d).includes('/') ? '' : ` (${esc(R.ddmm(prox.data))})`}</p>
           ${ritmo ? `<p class="muted" style="margin:4px 0 0">${ritmo.faltam ? `faltam ${ritmo.faltam} páginas · ${ritmo.porDia} por dia` : 'Leitura em dia para o encontro'}</p>` : prox.atePagina ? '' : '<p class="muted" style="margin:4px 0 0">Defina até onde ler no encontro.</p>'}`
           : '<p class="muted" style="margin:0">Nenhum encontro marcado.</p>'}
@@ -984,7 +1012,8 @@ function telaClube(encontroId) {
     <div><section class="cartao"><h2>Próximos livros do clube</h2>
       ${proximos.length ? `<ul class="lista">${proximos.map((l, i) => `<li class="item"><span class="muted" style="width:18px">${i + 1}.</span><div class="principal" data-acao="irLivro" data-id="${l.id}"><b>${esc(l.nome)}</b><small>${esc(l.autor || '')}</small></div>
         <button class="icone" data-acao="moverProximo" data-id="${l.id}" data-d="-1" aria-label="Subir">↑</button><button class="icone" data-acao="moverProximo" data-id="${l.id}" data-d="1" aria-label="Descer">↓</button><button class="icone" data-acao="tirarProximo" data-id="${l.id}" aria-label="Tirar">✕</button></li>`).join('')}</ul>` : '<p class="vazio">Nenhum livro planejado.</p>'}
-      <div class="linha" style="margin-top:12px"><select class="campo" data-add-proximo style="flex:1"><option value="">Adicionar livro da estante…</option>${s.livros.filter((l) => !c.proximos.includes(l.id)).map((l) => `<option value="${l.id}">${esc(l.nome)}</option>`).join('')}</select></div>
+      <div class="linha" style="margin-top:12px"><input class="campo" type="search" list="lista-livros" data-add-proximo placeholder="🔍 Adicionar livro da estante…" style="flex:1" autocomplete="off">
+      <datalist id="lista-livros">${s.livros.map((l) => `<option value="${esc(l.nome)}">${esc(l.autor || '')}</option>`).join('')}</datalist></div>
       <p class="dica">Livro que ainda não está na estante? Crie em Estante → + Livro.</p>
     </section></div>
   </div>`;
@@ -1914,6 +1943,8 @@ document.addEventListener('input', (e) => {
     mudarEstudio((e) => { if (i !== undefined) e[c][Number(i)] = el.value; else e[c] = el.value; }, false);
     return;
   }
+  // Escolheu um livro da lista: confirma na hora (sem precisar sair do campo).
+  if (el.matches('[data-clube-livro], [data-add-proximo]') && livroPeloNome(el.value) && (!e.inputType || e.inputType === 'insertReplacementText')) { escolherLivroClube(el); return; }
   if (el.dataset.imgNota) {
     const id = el.dataset.imgNota;
     mudarEstudio((e) => { const im = e.imagens.find((x) => x.id === id); if (im) im.nota = el.value; }, false);
@@ -1926,6 +1957,7 @@ document.addEventListener('input', (e) => {
     if (el.dataset.busca === 'trechos') buscaTrecho = v;
     if (el.dataset.busca === 'links') buscaLink = v;
     if (el.dataset.busca === 'moldes') buscaMolde = v;
+    if (el.dataset.busca === 'livros') buscaLivro = v;
     clearTimeout(el._t); el._t = setTimeout(() => { redesenhar(); const n = $(`[data-busca="${el.dataset.busca}"]`); if (n) { n.focus(); n.setSelectionRange(v.length, v.length); } }, 250);
   }
 });
@@ -1957,10 +1989,8 @@ document.addEventListener('change', (e) => {
   } else if (el.dataset.encontro) {
     const c = el.dataset.campo;
     set((s) => { s.clube.encontros.find((x) => x.id === el.dataset.encontro)[c] = c === 'atePagina' ? (el.value === '' ? '' : Number(el.value)) : el.value; }, c === 'data' || c === 'atePagina');
-  } else if (el.matches('[data-clube-livro]')) {
-    set((s) => { s.clube.livroAtual = el.value; const l = s.livros.find((x) => x.id === el.value); if (l && l.situacao !== 'lido') { l.situacao = 'lendo'; l.inicio = l.inicio || hoje(); } s.clube.proximos = s.clube.proximos.filter((x) => x !== el.value); }, true);
-  } else if (el.matches('[data-add-proximo]') && el.value) {
-    set((s) => { s.clube.proximos.push(el.value); }, true);
+  } else if (el.matches('[data-clube-livro], [data-add-proximo]')) {
+    escolherLivroClube(el);
   } else if (el.matches('[data-img-post]')) {
     adicionarImagens(el.files); el.value = '';
   } else if (el.matches('[data-capa]')) {
