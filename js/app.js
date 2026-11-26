@@ -1235,7 +1235,7 @@ function reduzirImagem(arquivo) {
   return new Promise((ok, erro) => {
     const img = new Image();
     img.onload = () => {
-      const larg = 240; const esc2 = larg / img.width;
+      const larg = Math.min(CAPA_LARGURA, img.width); const esc2 = larg / img.width;
       const c = document.createElement('canvas'); c.width = larg; c.height = Math.round(img.height * esc2);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       ok(c.toDataURL('image/jpeg', 0.8)); URL.revokeObjectURL(img.src);
@@ -1244,6 +1244,52 @@ function reduzirImagem(arquivo) {
     img.src = URL.createObjectURL(arquivo);
   });
 }
+// Capas mais leves (mesma aparência): as grandes são redesenhadas com até 320 px de largura,
+// o dobro do tamanho em que aparecem (fica nítido em tela de alta resolução).
+// Antes de trocar, a capa original fica guardada no IndexedDB deste aparelho ("capas-originais").
+const CAPA_LARGURA = 320;
+function capaMenor(dataUrl) {
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.width <= CAPA_LARGURA) { ok(null); return; }
+      const c = document.createElement('canvas');
+      c.width = CAPA_LARGURA; c.height = Math.round(img.height * (CAPA_LARGURA / img.width));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const nova = c.toDataURL('image/jpeg', 0.82);
+      ok(nova.length < dataUrl.length * 0.9 ? nova : null);
+    };
+    img.onerror = () => ok(null);
+    img.src = dataUrl;
+  });
+}
+function guardarCapasOriginais(capas) {
+  return new Promise((ok) => {
+    try {
+      const r = indexedDB.open('meu-painel-capas', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('originais');
+      r.onsuccess = () => {
+        const tx = r.result.transaction('originais', 'readwrite');
+        const st2 = tx.objectStore('originais');
+        capas.forEach(([id, capa]) => st2.put(capa, id));
+        tx.oncomplete = () => { r.result.close(); ok(true); };
+        tx.onerror = () => { r.result.close(); ok(false); };
+      };
+      r.onerror = () => ok(false);
+    } catch { ok(false); }
+  });
+}
+async function deixarCapasLeves() {
+  const grandes = st().livros.filter((l) => l.capa && l.capa.startsWith('data:image') && l.capa.length > 30000);
+  if (!grandes.length) return;
+  const trocas = [];
+  for (const l of grandes) { const nova = await capaMenor(l.capa); if (nova) trocas.push([l.id, l.capa, nova]); }
+  if (!trocas.length) return;
+  if (!(await guardarCapasOriginais(trocas.map(([id, antiga]) => [id, antiga])))) return; // sem cópia de segurança, não troca
+  S.mudar((s) => { trocas.forEach(([id, antiga, nova]) => { const l = s.livros.find((x) => x.id === id); if (l && l.capa === antiga) l.capa = nova; }); });
+  if (['leituras', 'livro', 'hoje'].includes(rota().nome)) redesenharQuandoLivre();
+}
+
 async function trocarCapa(id, arquivo) {
   if (!arquivo || !arquivo.type.startsWith('image/')) return;
   const url = await reduzirImagem(arquivo);
@@ -2273,6 +2319,7 @@ N.ligar({
 });
 render();
 N.comecar();
+setTimeout(deixarCapasLeves, 4000); // depois de abrir e sincronizar; só mexe nas capas grandes
 avancarFoco();
 desenharFoco();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
