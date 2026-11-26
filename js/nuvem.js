@@ -50,14 +50,14 @@ function uid() {
 export async function entrar(mail, senha) {
   const r = await pedir('/auth/v1/token?grant_type=password', { metodo: 'POST', corpo: { email: mail, password: senha } });
   guardarSessao(sessaoDe(r));
-  localStorage.removeItem(CH_BASE); // primeira vez neste aparelho com esta conta: junta sem apagar nada
+  await apagarBase(); // primeira vez neste aparelho com esta conta: junta sem apagar nada
   return sincronizar();
 }
 
 export async function sair() {
   const s = sessao;
   guardarSessao(null);
-  localStorage.removeItem(CH_BASE);
+  apagarBase();
   estado.situacao = 'parada';
   ganchos.mudou();
   if (s) pedir('/auth/v1/logout', { metodo: 'POST', token: s.token }).catch(() => {});
@@ -76,11 +76,39 @@ async function token() {
   }
 }
 
-function lerBase() {
+// A "base" (como os dados estavam na última vez que este aparelho e a nuvem combinaram) fica no IndexedDB:
+// o localStorage tem só uns 5 MB e, com as capas dos livros, a cópia não cabia mais. Sem base, o que era apagado voltava.
+function abrirBanco() {
+  return new Promise((ok, erro) => {
+    const r = indexedDB.open('meu-painel', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => erro(r.error);
+  });
+}
+async function banco(modo, fn) {
+  const db = await abrirBanco();
+  return new Promise((ok, erro) => {
+    const tx = db.transaction('kv', modo);
+    const req = fn(tx.objectStore('kv'));
+    tx.oncomplete = () => { db.close(); ok(req && req.result); };
+    tx.onerror = () => { db.close(); erro(tx.error); };
+  });
+}
+async function lerBase() {
+  try {
+    const b = await banco('readonly', (st) => st.get('base'));
+    if (b && b.dados) return b;
+  } catch { /* sem IndexedDB: tenta o jeito antigo */ }
   try { const b = JSON.parse(localStorage.getItem(CH_BASE) || 'null'); return b && b.dados ? b : null; } catch { return null; }
 }
-function gravarBase(dados, versao) {
+async function gravarBase(dados, versao) {
+  try { await banco('readwrite', (st) => st.put({ versao, dados }, 'base')); localStorage.removeItem(CH_BASE); return; } catch { /* segue */ }
   try { localStorage.setItem(CH_BASE, JSON.stringify({ versao, dados })); } catch { localStorage.removeItem(CH_BASE); }
+}
+async function apagarBase() {
+  localStorage.removeItem(CH_BASE);
+  try { await banco('readwrite', (st) => st.delete('base')); } catch { /* segue */ }
 }
 
 // Aparelho novo, sem nada anotado: fica com os dados da nuvem.
@@ -100,10 +128,10 @@ export async function sincronizar() {
     const nuvem = linhas && linhas[0];
     const local = ganchos.pegar();
     const fotoLocal = JSON.stringify(local);
-    const base = lerBase();
+    const base = await lerBase();
     if (!nuvem) {
       await pedir('/rest/v1/painel', { metodo: 'POST', token: tk, corpo: { dados: local, versao: 1 }, extra: { Prefer: 'return=minimal' } });
-      gravarBase(local, 1);
+      await gravarBase(local, 1);
     } else {
       let resultado;
       if (!base) {
@@ -123,8 +151,8 @@ export async function sincronizar() {
           extra: { Prefer: 'return=representation' },
         });
         if (!r || !r.length) { deNovo = true; return; } // o outro aparelho gravou antes: junta de novo
-        gravarBase(final, nuvem.versao + 1);
-      } else gravarBase(final, nuvem.versao);
+        await gravarBase(final, nuvem.versao + 1);
+      } else await gravarBase(final, nuvem.versao);
     }
     estado.situacao = 'ok';
     estado.ultima = new Date().toISOString();
