@@ -361,3 +361,53 @@ export function definirPrazo(tarefas, aula, etapa, data, extra = {}) {
   if (atual) return tarefas.map((t) => (t === atual ? { ...t, texto: textoPrazo(aula, etapa), quando: 'data', data, semanaFim: null } : t));
   return [...tarefas, { texto: textoPrazo(aula, etapa), classificada: true, quando: 'data', data, aulaId: aula.id, etapa: etapa.id, ...extra }];
 }
+
+// ---------- Prazos dos posts ----------
+// Prazo para escrever o roteiro e para gravar viram tarefas com data (a data de postar já aparece no Hoje).
+export const ORDEM_POST = ['ideia', 'roteiro', 'gravado', 'postado'];
+export const ETAPAS_POST = [
+  { id: 'roteiro', nome: 'Roteiro', verbo: 'Escrever o roteiro', situacao: 'roteiro' },
+  { id: 'gravar', nome: 'Gravar', verbo: 'Gravar', situacao: 'gravado' },
+];
+const nivelPost = (sit) => Math.max(0, ORDEM_POST.indexOf(sit));
+export const textoPrazoPost = (post, etapa) => `${etapa.verbo}: ${post.titulo || 'post sem título'}`;
+export const tarefaDoPost = (tarefas, postId, etapaId) => tarefas.find((t) => t.postId === postId && t.etapaPost === etapaId) || null;
+export function definirPrazoPost(tarefas, post, etapa, data, extra = {}) {
+  const atual = tarefaDoPost(tarefas, post.id, etapa.id);
+  if (!data) return atual && !atual.feitaEm ? tarefas.filter((t) => t !== atual) : tarefas;
+  if (atual) return tarefas.map((t) => (t === atual ? { ...t, texto: textoPrazoPost(post, etapa), quando: 'data', data, semanaFim: null } : t));
+  return [...tarefas, { texto: textoPrazoPost(post, etapa), classificada: true, quando: 'data', data, postId: post.id, etapaPost: etapa.id, ...extra }];
+}
+// A situação do post mudou: tarefas das etapas alcançadas ficam feitas; se voltou, reabrem.
+export function tarefasConformeSituacao(tarefas, post, hoje) {
+  const nivel = nivelPost(post.situacao);
+  return tarefas.map((t) => {
+    if (t.postId !== post.id || !t.etapaPost) return t;
+    const e = ETAPAS_POST.find((x) => x.id === t.etapaPost);
+    if (!e) return t;
+    const alcancou = nivel >= nivelPost(e.situacao);
+    if (alcancou && !t.feitaEm) return { ...t, feitaEm: hoje };
+    if (!alcancou && t.feitaEm) { const { feitaEm, ...resto } = t; return resto; }
+    return t;
+  });
+}
+// Tarefa de prazo feita: o post avança até a situação daquela etapa (nunca volta).
+export function situacaoPelaTarefa(post, tarefa) {
+  const e = ETAPAS_POST.find((x) => x.id === tarefa.etapaPost);
+  if (!e || nivelPost(post.situacao) >= nivelPost(e.situacao)) return post.situacao;
+  return e.situacao;
+}
+
+// ---------- Resumo da semana ----------
+// Soma o que foi registrado de segunda até o dia de hoje.
+export function resumoSemana(log, hoje) {
+  const seg = segunda(hoje);
+  const r = { tarefas: 0, etapas: 0, pomodoros: 0, postsGravados: 0, postsPostados: 0, paginas: 0 };
+  for (let i = 0; i < 7; i++) {
+    const dia = somaDias(seg, i);
+    if (dia > hoje) break;
+    const x = (log || {})[dia] || {};
+    Object.keys(r).forEach((k) => { r[k] += x[k] || 0; });
+  }
+  return r;
+}

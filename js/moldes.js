@@ -1,6 +1,86 @@
 // Gerado por ferramentas/gerar-moldes.py a partir de ~/Documents/Estudo de Reels. Não edite à mão.
 export const MOLDES = [
  {
+  "id": "DcehmBVJpse",
+  "data": "2026-11-25",
+  "criador": "A Magia Criativa",
+  "tema": "Hábito atômico (ferramenta 019)",
+  "formato": "Série numerada + ideia de livro aplicada no caderno, sem rosto",
+  "gancho": "Postando uma ferramenta por dia até te ajudar a alcançar a vida que você deseja.",
+  "etiquetas": [
+   "sem rosto",
+   "série",
+   "clube do livro",
+   "caderno"
+  ],
+  "capas": [
+   "moldes/capas/DcehmBVJpse.jpg"
+  ],
+  "conceito": "o melhor anúncio é o produto sendo usado para resolver o problema de quem assiste, sem dizer \"compre\".",
+  "molde": "SÉRIE: [Ação] uma [ferramenta/técnica] por dia até [o resultado que quem assiste deseja]. (Na tela: \"[Nome] 0XX\")\nERRO COMUM: A maioria das pessoas tenta [resolver X] só com [o jeito óbvio]. \"[A frase que elas dizem]\". Só que [por que não dura].\nFONTE: Baseado em [livro/autor/método]. A [ferramenta] de hoje é [nome].\nREGRA: [A regra em uma frase curta, com fórmula: \"depois de X, faço Y\"].\n3 EXEMPLOS: [exemplo de uma vida] / [de outra] / [de outra].\nSEGUNDO PASSO: E depois você pode [complemento]. Pode ser [3 ou 4 opções concretas].\nLIÇÃO: O objetivo não é [o óbvio]. É [a ideia]. Quanto menos [X], mais [Y].\nLEMBRETE COM HUMOR: Ah, e lembre-se: [uma frase engraçada que já está escrita no caderno].\nCTA: Se fez sentido, comenta [uma palavra]. [Frase de marca para fechar].\n(Visual: mãos de cima, o esquema se escreve no caderno enquanto você fala.)\n\nIdeia para o ateliê: \"Ferramenta 007: a regra do depois. Depois de cortar o molde, eu já etiqueto as peças. Depois de cada prova, eu anoto as alterações no mesmo caderno da cliente.\"",
+  "link": "https://www.instagram.com/reel/DcehmBVJpse/"
+ },
+ {
+  "id": "Df3JplvqSkA",
+  "data": "2026-11-25",
+  "criador": "Henri Armelin",
+  "tema": "Muji, a marca que vende o critério",
+  "formato": "Estudo de caso de marca + 5 lições",
+  "gancho": "O que podemos aprender com o modelo de negócios bilionário da papelaria mais amada do Japão?",
+  "etiquetas": [
+   "marca",
+   "história de marca",
+   "lista",
+   "preço"
+  ],
+  "capas": [
+   "moldes/capas/Df3JplvqSkA.jpg"
+  ],
+  "conceito": "a marca mora no critério, não no produto; e explicar por que algo custa menos (ou mais) aumenta a confiança em vez de diminuir.",
+  "molde": "GANCHO: O que podemos aprender com [o modelo de negócio / a história] da [marca] [algo que parece contraditório: \"a papelaria que vende macarrão\"]?\nPARADOXO: Você [compraria/faria] [algo improvável]? E [outro]? Na teoria, não. [A regra que todo mundo conhece.]\nEXCEÇÃO: Mas existe uma marca que [lista de coisas improváveis]. E o melhor: [prova de sucesso]. Essa marca é [nome].\nCONTRASTE: A maioria [se define por X]. [Marca conhecida 1] [faz isso]. [Marca 2] [faz isso]. Mas [nome] [se define por Y]. Eu vou explicar.\nORIGEM: [Nome] surgiu querendo [objetivo]. Por isso criou [regra/critério].\nPROBLEMA: O problema é que [efeito colateral do critério].\nVIRADA: Por isso fez a coisa mais genial: [a solução].\nFRASE EM ESPELHO: [X escondido] faz [efeito ruim]. [X explicado] faz [efeito bom].\n3 EXEMPLOS: A indústria [faz A]; [nome] [faz o oposto]. (x3, bem concretos)\nDUAS CAMADAS: Como negócio, [ganho]. Na cabeça do cliente, [ganho].\nCONCLUSÃO: O cliente de [nome] não compra [o produto], compra [a ideia].\nPONTE: E quais lições a gente tira disso? Eu listei [número], anota aí.\nLIÇÕES: 1… 2… 3 (com um teste prático)… 4… 5…\nCTA: Se gostou, me segue. (Legenda: uma pergunta.)\n\nIdeia para moda: \"O que podemos aprender com a marca de luxo que se recusa a fazer liquidação?\" ou \"Por que um ateliê que só faz noivas pode cobrar mais do que um que faz tudo?\"",
+  "link": "https://www.instagram.com/reel/Df3JplvqSkA/"
+ },
+ {
+  "id": "DehN6tYM6vh",
+  "data": "2026-11-25",
+  "criador": "Ananda Oliveira",
+  "tema": "Musselina de Dhaka, o tecido perdido",
+  "formato": "História de um tecido (mistério, números, vilão, lição)",
+  "gancho": "Você sabia que existe um tecido que nós já não conseguimos mais fabricar como antigamente?",
+  "etiquetas": [
+   "história da moda",
+   "tecido",
+   "costura",
+   "curiosidade"
+  ],
+  "capas": [
+   "moldes/capas/DehN6tYM6vh.jpg"
+  ],
+  "conceito": "a história de um material vira conteúdo quando tem mistério, números que dá para sentir, um vilão e uma lição que fala do seu valor de artesã.",
+  "molde": "GANCHO: Você sabia que existe um [tecido/técnica/peça] que [fato surpreendente]? E não é por [a explicação óbvia].\nMEIA RESPOSTA: É porque [metade da explicação]. Eu estou falando de [nome], que já foi [o mais X do mundo/da época].\nORIGEM: [Onde e como surgia], a partir de [matéria-prima específica]. [Detalhe raro que mostra o valor.]\nTÉCNICA: [Quem fazia] inventou [a técnica]. Para vocês terem ideia, [detalhe concreto e curioso].\nFATO CHOCANTE: Era tão [qualidade] que [história de época impressionante].\nCOMPARAÇÃO EM ESCADA: [O que estou vestindo/mostrando] tem [número]. [Algo famoso] tem [número maior]. Já [o tema] chegava a [número muito maior].\nLENDA: Diziam que [frase poética da época].\nPERGUNTA DE QUEM ASSISTE: Vocês me perguntam: \"se era tão [bom], por que [desapareceu/mudou]?\"\nVILÃO: A resposta está em [causa]. [Como aconteceu, em 3 frases.]\nHOJE: Em [ano], [tentativa de recuperar]. Mas [o que ainda falta].\nLIÇÃO: Essa história faz a gente lembrar que [valor]. [Frase forte de fechamento.]\n(Visual: começar com o tecido na tela; vestir ou segurar o assunto; imagens de arquivo com a legenda original.)\n\nIdeias para a Ingrid: a renda de Chantilly feita à mão; a barbatana de baleia nos corsets (e por que hoje é de plástico ou aço); a seda que vinha pela Rota da Seda; o tule de seda das noivas antigas; a crinolina.",
+  "link": "https://www.instagram.com/reel/DehN6tYM6vh/"
+ },
+ {
+  "id": "DgD3V3DPzpv",
+  "data": "2026-11-25",
+  "criador": "Henri Armelin",
+  "tema": "Hospitalidade: fazer o cliente se sentir especial (Chip Conley)",
+  "formato": "Ideias de um especialista em 4 insights + comenta a palavra",
+  "gancho": "Como fazer qualquer cliente se sentir especial, de acordo com o maior especialista em hospitalidade dos Estados Unidos.",
+  "etiquetas": [
+   "atendimento",
+   "animações",
+   "lista",
+   "edição que explica"
+  ],
+  "capas": [
+   "moldes/capas/DgD3V3DPzpv.jpg"
+  ],
+  "conceito": "na edição, todo substantivo vira imagem e toda ideia abstrata vira uma metáfora visual; assim, quem assiste entende mesmo sem som.",
+  "molde": "GANCHO: Como [resultado que quem assiste quer] de acordo com [o maior especialista em X / um nome conhecido].\nPROVA: [Nome] é [quem é] que, em [ano], [feito que todo mundo reconhece].\nPROMESSA: E ele tem princípios que qualquer um de nós pode usar para [resultado concreto].\nPERGUNTA CENTRAL: A carreira dele gira em torno de uma só pergunta: [pergunta]. Esses são os insights mais interessantes.\nINSIGHT 1 (contraria o senso comum): [Título que provoca]. [Explicação]. Resumindo: [a ideia em uma frase].\nINSIGHT 2: [Título]. [Explicação]. Por exemplo, [caso concreto do dia a dia].\nINSIGHT 3: [Título]. [Explicação]. Ele se inspira em [outra referência famosa]: [frase com ordem: primeiro… segundo… terceiro…].\nINSIGHT 4: [Título]. Por isso, você deveria [ação prática].\nCTA: Se quiser [receber X], digite [PALAVRA]. [Frase de assinatura] e eu te vejo amanhã.\n(Edição: uma imagem para cada substantivo, uma metáfora para cada ideia abstrata, cartão numerado igual para cada insight, legenda sempre no mesmo lugar.)\n\nIdeia para a Ingrid: \"Como fazer qualquer noiva se sentir única, de acordo com [uma estilista de alta-costura ou um livro de atendimento]\", com 4 insights aplicados ao ateliê.",
+  "link": "https://www.instagram.com/reel/DgD3V3DPzpv/"
+ },
+ {
   "id": "Dfm-AMrBVL1",
   "data": "2026-11-19",
   "criador": "Textti",

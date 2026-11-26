@@ -99,7 +99,9 @@ function atualizarSelo() {
 // ======================================================================
 // HOJE
 // ======================================================================
-function itemTarefa(t, d) {
+// Linha de tarefa: o nome usa a largura toda; hora, projeto, categoria e dia ficam numa linha pequena embaixo.
+// semDia: a lista já está agrupada por dia (ex.: AMANHÃ), então não repete o dia na etiqueta.
+function itemTarefa(t, d, { semDia = false } = {}) {
   const venc = R.vencimento(t);
   const atras = R.atrasada(t, d);
   const urg = atras && R.urgente(t, L());
@@ -109,12 +111,20 @@ function itemTarefa(t, d) {
   const tipoQd = atras ? 'q-atraso' : qd === 'Amanhã' ? 'q-amanha' : qd === 'Esta semana' ? 'q-semana' : 'q-depois';
   const cp = corProjetoId(t.projeto);
   const cc = corCategoria(t.categoria);
+  const proj = nomeProjeto(t.projeto);
+  const meta = [
+    hora ? `<span class="hora">${esc(hora)}</span>` : '',
+    t.repetir ? '<span title="Repete">↻</span>' : '',
+    proj ? `<span class="tag tag-cor" ${estiloCor(cp)}>${esc(proj)}</span>` : '',
+    cat && !proj ? `<span class="tag tag-cor" ${estiloCor(cc)}>${esc(cat)}</span>` : '', // com projeto, a categoria é repetida
+    qd && qd !== 'Hoje' && !(semDia && !atras) ? `<span class="quando ${tipoQd}">${esc(qd)}</span>` : '',
+  ].filter(Boolean).join('');
   return `<li class="tarefa ${cp ? 'com-projeto' : ''} ${atras ? 'atrasada' : ''} ${urg ? 'urgente' : ''} ${t.feitaEm ? 'feita' : ''}" ${estiloCor(cp)}>
     <button class="check ${t.feitaEm ? 'feito' : ''}" data-acao="concluir" data-id="${t.id}" aria-label="Concluir"></button>
-    ${hora ? `<span class="hora">${esc(hora)}</span>` : ''}<div class="txt" data-acao="abrirTarefa" data-id="${t.id}"><span>${esc(t.texto)}</span>
+    <div class="txt" data-acao="abrirTarefa" data-id="${t.id}"><span>${esc(t.texto)}</span>
+      ${meta ? `<div class="meta">${meta}</div>` : ''}
       ${t.primeiroPasso ? `<small>Primeiro passo: ${esc(t.primeiroPasso)}</small>` : ''}</div>
     ${t.feitaEm ? '' : `<button class="fazer-agora" data-acao="fazerAgora" data-id="${t.id}" title="Vou fazer agora (abre o Pomodoro)" aria-label="Vou fazer agora">▶</button>`}
-    <div class="meta">${t.repetir ? '<span title="Repete">↻</span>' : ''}${nomeProjeto(t.projeto) ? `<span class="tag tag-cor" ${estiloCor(cp)}>${esc(nomeProjeto(t.projeto))}</span>` : ''}${cat ? `<span class="tag tag-cor" ${estiloCor(cc)}>${esc(cat)}</span>` : ''}${qd && qd !== 'Hoje' ? `<span class="quando ${tipoQd}">${esc(qd)}</span>` : ''}</div>
   </li>`;
 }
 
@@ -132,7 +142,7 @@ function telaHoje() {
   R.postsDeHoje(s.posts, d).forEach((p) => linhas.push(`<div class="linha-hoje"><span class="rot">Post</span><span class="espaco">${esc(p.titulo)} ${p.formato ? `<span class="tag">${esc(nomeDe(L().formatos, p.formato))}</span>` : ''}</span><a href="#/post/${p.id}">Abrir roteiro</a></div>`));
   const ra = R.resumoAulas(s.aulas, L().etapasAula, d);
   const atrasAulas = R.aulasAtrasadas(s.aulas, L().etapasAula, d).length;
-  if (ra.total || atrasAulas) linhas.push(blocoAulasHoje(d, ra));
+  if ((ra.total || atrasAulas) && s.ajustes.hojeAulas !== false) linhas.push(blocoAulasHoje(d, ra));
   const clube = R.avisoClube(s.clube.encontros, d);
   if (clube) {
     const enc = s.clube.encontros.find((e) => e.data === (clube === 'hoje' ? d : R.somaDias(d, 1)));
@@ -141,7 +151,8 @@ function telaHoje() {
   if (R.mostrarFecharMes(s.meses, d) && s.contas.length) linhas.push(`<div class="linha-hoje"><span class="rot">Patrimônio</span><span class="espaco">Fechar o mês de ${R.nomeMes(R.mesDe(d))}</span><a href="#/fechar/${R.mesDe(d)}">Fechar</a></div>`);
   const ideia = blocoIdeiaDoDia();
   if (ideia) linhas.push(ideia);
-  const proxSemana = blocoProximasSemana(d);
+  const proxSemana = s.ajustes.hojeSemana !== false ? blocoProximasSemana(d) : '';
+  const resumo = s.ajustes.hojeResumo !== false ? blocoResumoSemana(d) : '';
 
   // Aviso do fim do dia
   const fimDoDia = R.mostrarAvisoFimDoDia(s.tarefas, d, horaAtual(), s.ajustes.horarioAviso, s.avisos.fimDoDia);
@@ -158,7 +169,7 @@ function telaHoje() {
   </header>
   <form class="anotar" data-form="anotar"><input name="texto" placeholder="Colocar na Caixa do Depois…" autocomplete="off" aria-label="Anotar uma tarefa"><button class="btn" type="submit">Anotar</button></form>
   <div class="hoje-acoes"><button class="comecar" data-acao="comecar">✦ Começar pequeno</button></div>
-  <div class="hoje-grade"><div class="hoje-principal">
+  <div class="hoje-grade ${s.ajustes.hojeCalendario === false ? 'sem-lado' : ''}"><div class="hoje-principal">
 
   ${fimDoDia ? `<div class="cartao aviso-gentil" style="margin-bottom:18px"><b>Ficou coisa para amanhã? Tudo bem.</b>
     <div class="linha" style="margin-top:10px"><button class="btn btn-pequeno" data-acao="passarAmanha">Passar para amanhã</button><button class="btn btn-2 btn-pequeno" data-acao="comecar">Escolher 1 para fazer agora</button><button class="btn-3" data-acao="dispensarFimDoDia">Fechar</button></div></div>` : ''}
@@ -169,6 +180,7 @@ function telaHoje() {
     ${feitasHoje.length ? `<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Feitas hoje (${feitasHoje.length})</summary><ul class="tarefas">${feitasHoje.map((t) => `<li class="tarefa feita"><button class="check feito" data-acao="reabrir" data-id="${t.id}" aria-label="Desfazer"></button><div class="txt"><span>${esc(t.texto)}</span></div></li>`).join('')}</ul></details>` : ''}
   </section>
 
+  ${resumo}
   ${linhas.length || proxSemana ? `<div class="linhas-hoje">${proxSemana}${linhas.join('')}</div>` : ''}
 
   <footer class="rodape-hoje">
@@ -178,7 +190,22 @@ function telaHoje() {
     ${semData ? `<span>${semData} sem data · <a href="#/tarefas">Ver</a></span>` : ''}
     ${pedirCopia ? `<span>Salvar cópia da semana? <button class="link-acao" data-acao="salvarCopia">Salvar</button> · <button class="link-acao" data-acao="dispensarCopia" style="color:var(--texto-2)">Agora não</button></span>` : ''}
   </footer>
-  </div><aside class="hoje-lado">${blocoCalendario()}</aside></div>`;
+  </div>${s.ajustes.hojeCalendario !== false ? `<aside class="hoje-lado">${blocoCalendario()}</aside>` : ''}</div>`;
+}
+
+// ---------- Resumo da semana (no domingo) ----------
+function blocoResumoSemana(d) {
+  const s = st();
+  if (R.diaSemana(d) !== 0 || s.avisos.resumo === d) return '';
+  const r = R.resumoSemana(s.log, d);
+  const itens = [
+    [r.tarefas, 'tarefa feita', 'tarefas feitas'], [r.etapas, 'etapa de aula', 'etapas de aula'], [r.postsGravados, 'post gravado', 'posts gravados'],
+    [r.postsPostados, 'post postado', 'posts postados'], [r.paginas, 'página lida', 'páginas lidas'], [r.pomodoros, 'pomodoro', 'pomodoros'],
+  ].filter(([n]) => n > 0);
+  if (!itens.length) return '';
+  return `<section class="cartao resumo-semana"><div class="secao-titulo"><h2>Sua semana</h2><button class="btn-3 btn-pequeno" data-acao="fecharResumo">Fechar</button></div>
+    <div class="resumo-itens">${itens.map(([n, um, varios]) => `<div><b>${n}</b><span>${n === 1 ? um : varios}</span></div>`).join('')}</div>
+    <p class="muted" style="margin:10px 0 0;font-size:13.5px">Isso foi o que você fez de segunda até hoje. Boa semana que vem!</p></section>`;
 }
 
 // ---------- Calendário (no Hoje) ----------
@@ -310,7 +337,7 @@ function telaTarefas() {
     <div>
       <section class="cartao"><h2>Hoje e atrasadas</h2>${hojeL.length ? `<ul class="tarefas">${hojeL.map((t) => itemTarefa(t, d)).join('')}</ul>` : '<p class="vazio">Nada para hoje.</p>'}</section>
       <section class="cartao"><h2>Esta semana</h2><p class="dica" style="margin:-6px 0 6px">Até domingo, sem dia certo.</p>${semana.length ? `<ul class="tarefas">${semana.map((t) => itemTarefa(t, d)).join('')}</ul>` : '<p class="vazio">Nada.</p>'}</section>
-      <section class="cartao"><h2>Próximos dias</h2>${Object.keys(porDia).length ? Object.entries(porDia).map(([dia, ts]) => `<div class="grupo-dia">${esc(R.quando(dia, d))}</div><ul class="tarefas">${ts.map((t) => itemTarefa(t, d)).join('')}</ul>`).join('') : '<p class="vazio">Nada marcado.</p>'}</section>
+      <section class="cartao"><h2>Próximos dias</h2>${Object.keys(porDia).length ? Object.entries(porDia).map(([dia, ts]) => `<div class="grupo-dia">${esc(R.quando(dia, d))}</div><ul class="tarefas">${ts.map((t) => itemTarefa(t, d, { semDia: true })).join('')}</ul>`).join('') : '<p class="vazio">Nada marcado.</p>'}</section>
     </div>
     <div>
       <section class="cartao"><h2>Sem data</h2>
@@ -369,7 +396,7 @@ function abrirTarefa(id) {
       <label>Quando<select class="campo" name="quando" data-muda="quando">
         <option value="sem" ${t.quando === 'sem' || !t.quando ? 'selected' : ''}>Sem data</option>
         <option value="semana" ${t.quando === 'semana' ? 'selected' : ''}>Esta semana</option>
-        <option value="data" ${t.quando === 'data' ? 'selected' : ''}>Num dia</option></select></label>
+        <option value="data" ${t.quando === 'data' ? 'selected' : ''}>No dia</option></select></label>
       <div data-mostra="quando-data" class="duas" ${t.quando === 'data' ? '' : 'hidden'} style="gap:8px"><label>Dia<input type="date" class="campo" name="data" value="${esc(t.data || '')}"></label><label>Horário (opcional)<input type="time" class="campo" name="hora" value="${esc(t.hora || '')}"></label></div>
     </div>
     <div class="duas">
@@ -483,8 +510,20 @@ function iniciarFoco(texto, tarefaId) {
   desenharFoco();
 }
 const pomo = () => st().ajustes.pomodoro;
-// Tarefa de prazo de aula concluída: marca a etapa da aula como pronta.
+// Post mudou de situação: tarefas de prazo acompanham, e o avanço entra no resumo da semana.
+function postMudouSituacao(s, p, antes) {
+  s.tarefas = R.tarefasConformeSituacao(s.tarefas, p, hoje());
+  const n = (x) => R.ORDEM_POST.indexOf(x);
+  if (n(antes) < n('gravado') && n(p.situacao) >= n('gravado')) logar('postsGravados');
+  if (n(antes) < n('postado') && n(p.situacao) >= n('postado')) logar('postsPostados');
+}
+// Tarefa de prazo concluída: marca a etapa da aula como pronta ou avança o post.
 function etapaFeitaPelaTarefa(s, t) {
+  if (t && t.postId && t.feitaEm) {
+    const p = s.posts.find((x) => x.id === t.postId);
+    if (p) { const antes = p.situacao; p.situacao = R.situacaoPelaTarefa(p, t); if (p.situacao !== antes) postMudouSituacao(s, p, antes); }
+    return;
+  }
   if (!t || !t.aulaId || !t.feitaEm) return;
   const a = s.aulas.find((x) => x.id === t.aulaId);
   if (!a) return;
@@ -708,6 +747,7 @@ function telaPost(id) {
     <label>Função<select class="campo" data-campo-post="funcao">${opc(L().funcoes, p.funcao)}</select></label>
     <label>Projeto<select class="campo" data-campo-post="projeto">${opcProjetos(p.projeto)}</select></label>
     <label>Série<input class="campo" data-campo-post="serie" value="${esc(p.serie || '')}" list="lista-series" placeholder="Opcional"><datalist id="lista-series">${series.map((x) => `<option value="${esc(x)}">`).join('')}</datalist></label>
+    ${R.ETAPAS_POST.map((e) => { const t = R.tarefaDoPost(st().tarefas, p.id, e.id); return `<label>${e.id === 'roteiro' ? 'Prazo do roteiro' : 'Prazo para gravar'}<input type="date" class="campo" data-prazo-post="${e.id}" value="${esc(t ? t.data : '')}"></label>`; }).join('')}
     <label>Data de postar<input type="date" class="campo" data-campo-post="data" value="${esc(p.data || '')}"></label>
     <label>Link<input class="campo" data-campo-post="link" value="${esc(p.link || '')}" placeholder="Opcional"></label>
   </div>
@@ -1366,7 +1406,11 @@ function telaAjustes() {
       <label>Pausa longa (min)<input type="number" class="campo" data-pomo="longa" value="${a.pomodoro.longa}" style="width:80px"></label>
       <label>Pausa longa a cada<input type="number" class="campo" data-pomo="ciclos" value="${a.pomodoro.ciclos}" style="width:80px"></label>
     </div>
-    <label class="linha" style="gap:8px;margin-top:10px"><input type="checkbox" data-ajuste-bool="ideiaDoDia" ${a.ideiaDoDia ? 'checked' : ''}> Mostrar a Ideia do dia no Hoje</label>
+  </section>
+  <section class="cartao"><h2>O que aparece no Hoje</h2>
+    <p class="muted" style="margin-top:0">Desmarque o que não quer ver na tela Hoje. As tarefas de hoje aparecem sempre.</p>
+    ${[['ideiaDoDia', 'Sugestão do dia (ideia ou roteiro para gravar)'], ['hojeSemana', 'Na semana (próximas tarefas para adiantar)'], ['hojeAulas', 'Aulas da semana'], ['hojeResumo', 'Resumo da semana, no domingo'], ['hojeCalendario', 'Calendário']]
+      .map(([k, nome]) => `<label class="linha" style="gap:8px;margin-top:8px"><input type="checkbox" data-ajuste-bool="${k}" ${a[k] !== false ? 'checked' : ''}> ${nome}</label>`).join('')}
   </section>
 
   <h2 style="margin:30px 0 12px">Listas</h2>
@@ -1688,6 +1732,7 @@ const acoes = {
     });
     redesenhar();
   },
+  fecharResumo() { S.mudar((s) => { s.avisos.resumo = hoje(); }); redesenhar(); },
   ideiaHojeNao() { S.mudar((s) => { s.ideia.hojeNao = hoje(); }); redesenhar(); },
   ideiaFazer() {
     const c = candidatoAtual();
@@ -1739,7 +1784,7 @@ const acoes = {
       const p = s.posts.find((x) => x.id === id);
       const e = E.estudioDe(p);
       p.texto = E.juntarTexto(E.montarHTML(e, moldePorId(e.molde), esc), p.texto);
-      if (p.situacao === 'ideia') p.situacao = 'roteiro';
+      if (p.situacao === 'ideia') { p.situacao = 'roteiro'; postMudouSituacao(s, p, 'ideia'); }
     }, { desfazivel: true });
     location.hash = `#/post/${id}`;
     aviso('Roteiro montado no post', { desfazer: true });
@@ -1944,7 +1989,7 @@ document.addEventListener('submit', (e) => {
   if (tipo === 'pagina') {
     const p = Number(fd.get('pagina'));
     if (!fd.get('pagina')) return;
-    S.mudar((s) => { const l = s.livros.find((x) => x.id === f.dataset.id); l.paginaAtual = p; if (l.paginas && p >= l.paginas) { l.situacao = 'lido'; l.fim = l.fim || hoje(); } });
+    S.mudar((s) => { const l = s.livros.find((x) => x.id === f.dataset.id); if (p > (l.paginaAtual || 0)) logar('paginas', p - (l.paginaAtual || 0)); l.paginaAtual = p; if (l.paginas && p >= l.paginas) { l.situacao = 'lido'; l.fim = l.fim || hoje(); } });
     const l = st().livros.find((x) => x.id === f.dataset.id);
     aviso(l.situacao === 'lido' ? 'Livro terminado!' : 'Página atualizada');
     redesenhar();
@@ -2042,9 +2087,24 @@ document.addEventListener('change', (e) => {
       a[c] = v;
       if (c === 'titulo') s.tarefas.forEach((t) => { if (t.aulaId === a.id && !t.feitaEm) { const e = s.listas.etapasAula.find((x) => x.id === t.etapa); if (e) t.texto = R.textoPrazo(a, e); } });
     }, c === 'semana' || c === 'pdf');
+  } else if (el.dataset.prazoPost) {
+    const postId = rota().args[0];
+    S.mudar((s) => {
+      const p = s.posts.find((x) => x.id === postId);
+      const etapa = R.ETAPAS_POST.find((x) => x.id === el.dataset.prazoPost);
+      if (!p || !etapa) return;
+      s.tarefas = R.definirPrazoPost(s.tarefas, p, etapa, el.value, { id: S.uid(), criadaEm: S.agora(), categoria: (s.listas.categorias[0] || {}).id || '', projeto: p.projeto || '' });
+    });
+    redesenharQuandoLivre();
   } else if (el.dataset.campoPost) {
     const c = el.dataset.campoPost;
-    set((s) => { s.posts.find((x) => x.id === rota().args[0])[c] = el.value; });
+    set((s) => {
+      const p = s.posts.find((x) => x.id === rota().args[0]);
+      const antes = p.situacao;
+      p[c] = el.value;
+      if (c === 'situacao') postMudouSituacao(s, p, antes);
+      if (c === 'titulo') s.tarefas.forEach((t) => { if (t.postId === p.id && !t.feitaEm) { const e = R.ETAPAS_POST.find((x) => x.id === t.etapaPost); if (e) t.texto = R.textoPrazoPost(p, e); } });
+    }, c === 'situacao');
   } else if (el.dataset.campoLivro) {
     const c = el.dataset.campoLivro;
     let v = el.value;
