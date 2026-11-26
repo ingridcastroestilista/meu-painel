@@ -106,9 +106,10 @@ function itemTarefa(t, d, { semDia = false } = {}) {
   const atras = R.atrasada(t, d);
   const urg = atras && R.urgente(t, L());
   const cat = nomeDe(L().categorias, t.categoria);
-  const qd = venc ? (t.quando === 'semana' && venc >= d ? 'Esta semana' : R.quando(venc, d)) : '';
+  const falta = R.faltamDias(t, d);
+  const qd = venc ? (R.comPrazo(t) && falta >= 0 ? (falta === 0 ? 'Prazo hoje' : `Até ${R.quando(venc, d)} · ${falta === 1 ? 'falta 1 dia' : `faltam ${falta} dias`}`) : t.quando === 'semana' && venc >= d ? 'Esta semana' : R.quando(venc, d)) : '';
   const hora = t.hora && t.quando === 'data' ? t.hora : '';
-  const tipoQd = atras ? 'q-atraso' : qd === 'Amanhã' ? 'q-amanha' : qd === 'Esta semana' ? 'q-semana' : 'q-depois';
+  const tipoQd = atras ? 'q-atraso' : qd === 'Amanhã' || qd === 'Prazo hoje' ? 'q-amanha' : qd === 'Esta semana' || R.comPrazo(t) ? 'q-semana' : 'q-depois';
   const cp = corProjetoId(t.projeto);
   const cc = corCategoria(t.categoria);
   const proj = nomeProjeto(t.projeto);
@@ -123,7 +124,8 @@ function itemTarefa(t, d, { semDia = false } = {}) {
     <button class="check ${t.feitaEm ? 'feito' : ''}" data-acao="concluir" data-id="${t.id}" aria-label="Concluir"></button>
     <div class="txt" data-acao="abrirTarefa" data-id="${t.id}"><span>${esc(t.texto)}</span>
       ${meta ? `<div class="meta">${meta}</div>` : ''}
-      ${t.primeiroPasso ? `<small>Primeiro passo: ${esc(t.primeiroPasso)}</small>` : ''}</div>
+      ${t.primeiroPasso ? `<small>Primeiro passo: ${esc(t.primeiroPasso)}</small>` : ''}
+      ${R.comPrazo(t) && !t.feitaEm ? `<small class="parte-hoje">${t.pedaco ? `Hoje: ${esc(t.pedaco)} · ` : ''}${t.parteFeita === d ? '✓ parte de hoje feita' : falta > 0 ? `<button class="link-acao" data-acao="parteHoje" data-id="${t.id}">Fiz a parte de hoje</button>` : ''}</small>` : ''}</div>
     ${t.feitaEm ? '' : `<button class="fazer-agora" data-acao="fazerAgora" data-id="${t.id}" title="Vou fazer agora (abre o Pomodoro)" aria-label="Vou fazer agora">▶</button>`}
   </li>`;
 }
@@ -143,6 +145,7 @@ function telaHoje() {
   const ra = R.resumoAulas(s.aulas, L().etapasAula, d);
   const atrasAulas = R.aulasAtrasadas(s.aulas, L().etapasAula, d).length;
   if ((ra.total || atrasAulas) && s.ajustes.hojeAulas !== false) linhas.push(blocoAulasHoje(d, ra));
+  if (s.ajustes.hojeLeitura !== false) { const ml = blocoLeituraHoje(d); if (ml) linhas.push(ml); }
   const clube = R.avisoClube(s.clube.encontros, d);
   if (clube) {
     const enc = s.clube.encontros.find((e) => e.data === (clube === 'hoje' ? d : R.somaDias(d, 1)));
@@ -191,6 +194,23 @@ function telaHoje() {
     ${pedirCopia ? `<span>Salvar cópia da semana? <button class="link-acao" data-acao="salvarCopia">Salvar</button> · <button class="link-acao" data-acao="dispensarCopia" style="color:var(--texto-2)">Agora não</button></span>` : ''}
   </footer>
   </div>${s.ajustes.hojeCalendario !== false ? `<aside class="hoje-lado">${blocoCalendario()}</aside>` : ''}</div>`;
+}
+
+// ---------- Meta de leitura do clube (no Hoje) ----------
+// Guarda em que página ela estava no começo do dia, para a meta não mudar enquanto lê.
+function blocoLeituraHoje(d) {
+  const s = st();
+  const livro = s.livros.find((l) => l.id === s.clube.livroAtual);
+  const enc = R.proximoEncontro(s.clube.encontros, d);
+  if (!livro || !enc) return '';
+  const ld = s.clube.leituraDia;
+  if (!ld || ld.data !== d || ld.livroId !== livro.id) { s.clube.leituraDia = { data: d, livroId: livro.id, pagina: Number(livro.paginaAtual) || 0 }; S.salvar(); }
+  const m = R.metaLeituraHoje(livro, enc, d, s.clube.leituraDia.pagina);
+  if (!m) return '';
+  return `<div class="linha-hoje leitura-hoje" style="align-items:flex-start"><span class="rot" style="padding-top:2px">Leitura</span>
+    <div class="espaco">${m.feita ? `<span>✓ Meta de hoje feita: <b>${esc(livro.nome)}</b> até a pág. ${m.alvo}.</span>` : `<span><b>${esc(livro.nome)}</b>: ler até a <b>pág. ${m.alvo}</b> hoje (${m.paginasHoje} páginas)</span>`}
+      <small class="muted" style="display:block">Encontro ${esc(R.quando(enc.data, d).toLowerCase())}, até a pág. ${esc(enc.atePagina)} · você está na pág. ${Number(livro.paginaAtual) || 0}</small>
+      <form class="linha" data-form="pagina" data-id="${livro.id}" style="margin-top:8px"><input class="campo" name="pagina" type="number" min="0" placeholder="Parei na página…" style="width:150px"><button class="btn btn-2 btn-pequeno" type="submit">Atualizar</button></form></div></div>`;
 }
 
 // ---------- Resumo da semana (no domingo) ----------
@@ -392,12 +412,15 @@ function abrirTarefa(id) {
   janela.innerHTML = `<form class="janela" data-form="tarefa" data-id="${t.id}" method="dialog">
     <h2>${id ? 'Tarefa' : 'Nova tarefa'}</h2>
     <label>Tarefa<input class="campo" name="texto" value="${esc(t.texto)}" required></label>
+    <p class="dica" data-mostra="quando-ate-dica" ${t.quando === 'ate' ? '' : 'hidden'} style="margin:0">Com prazo, a tarefa aparece todo dia no Hoje até você terminar. Escreva abaixo um pedaço pequeno para cada dia.</p>
+    <label data-mostra="quando-ate" ${t.quando === 'ate' ? '' : 'hidden'}>Pedaço de cada dia (opcional)<input class="campo" name="pedaco" value="${esc(t.pedaco || '')}" placeholder="Ex.: 20 páginas, 1 parte do PDF, 2 slides"></label>
     <div class="duas">
       <label>Quando<select class="campo" name="quando" data-muda="quando">
         <option value="sem" ${t.quando === 'sem' || !t.quando ? 'selected' : ''}>Sem data</option>
         <option value="semana" ${t.quando === 'semana' ? 'selected' : ''}>Esta semana</option>
-        <option value="data" ${t.quando === 'data' ? 'selected' : ''}>No dia</option></select></label>
-      <div data-mostra="quando-data" class="duas" ${t.quando === 'data' ? '' : 'hidden'} style="gap:8px"><label>Dia<input type="date" class="campo" name="data" value="${esc(t.data || '')}"></label><label>Horário (opcional)<input type="time" class="campo" name="hora" value="${esc(t.hora || '')}"></label></div>
+        <option value="data" ${t.quando === 'data' ? 'selected' : ''}>No dia</option>
+        <option value="ate" ${t.quando === 'ate' ? 'selected' : ''}>Até o dia (prazo)</option></select></label>
+      <div data-mostra="quando-data" class="duas" ${t.quando === 'data' || t.quando === 'ate' ? '' : 'hidden'} style="gap:8px"><label>Dia<input type="date" class="campo" name="data" value="${esc(t.data || '')}"></label><label data-mostra="quando-hora" ${t.quando === 'ate' ? 'hidden' : ''}>Horário (opcional)<input type="time" class="campo" name="hora" value="${esc(t.hora || '')}"></label></div>
     </div>
     <div class="duas">
       <label>Prioridade<select class="campo" name="prioridade">${opc(L().prioridades, t.prioridade)}</select></label>
@@ -439,12 +462,13 @@ function salvarTarefa(form) {
   let quando = f.get('quando');
   let dataT = f.get('data') || '';
   if (quando === 'data' && !dataT) dataT = d;
+  if (quando === 'ate' && !dataT) dataT = R.somaDias(d, 7);
   if (repetir) {
     quando = 'data';
     const ainda = dataT && R.repeteEm(repetir, dataT) ? dataT : R.primeiraRepeticao(repetir, d);
     dataT = ainda;
   }
-  Object.assign(base, { quando, data: quando === 'data' ? dataT : null, semanaFim: quando === 'semana' ? R.domingo(d) : null, hora: quando === 'data' ? (f.get('hora') || '') : '' });
+  Object.assign(base, { quando, data: quando === 'data' || quando === 'ate' ? dataT : null, semanaFim: quando === 'semana' ? R.domingo(d) : null, hora: quando === 'data' ? (f.get('hora') || '') : '', pedaco: quando === 'ate' ? String(f.get('pedaco') || '').trim() : '' });
   S.mudar((s) => {
     if (id) Object.assign(s.tarefas.find((x) => x.id === id), base);
     else s.tarefas.push({ id: S.uid(), criadaEm: S.agora(), ...base });
@@ -1409,7 +1433,7 @@ function telaAjustes() {
   </section>
   <section class="cartao"><h2>O que aparece no Hoje</h2>
     <p class="muted" style="margin-top:0">Desmarque o que não quer ver na tela Hoje. As tarefas de hoje aparecem sempre.</p>
-    ${[['ideiaDoDia', 'Sugestão do dia (ideia ou roteiro para gravar)'], ['hojeSemana', 'Na semana (próximas tarefas para adiantar)'], ['hojeAulas', 'Aulas da semana'], ['hojeResumo', 'Resumo da semana, no domingo'], ['hojeCalendario', 'Calendário']]
+    ${[['ideiaDoDia', 'Sugestão do dia (ideia ou roteiro para gravar)'], ['hojeSemana', 'Na semana (próximas tarefas para adiantar)'], ['hojeAulas', 'Aulas da semana'], ['hojeLeitura', 'Meta de leitura do clube'], ['hojeResumo', 'Resumo da semana, no domingo'], ['hojeCalendario', 'Calendário']]
       .map(([k, nome]) => `<label class="linha" style="gap:8px;margin-top:8px"><input type="checkbox" data-ajuste-bool="${k}" ${a[k] !== false ? 'checked' : ''}> ${nome}</label>`).join('')}
   </section>
 
@@ -1707,6 +1731,10 @@ const acoes = {
   // Começar pequeno / foco
   comecar() { comecarPequeno(); },
   fazerAgora(el) { fazerAgora(el.dataset.id); },
+  parteHoje(el) {
+    S.mudar((s) => { const t = s.tarefas.find((x) => x.id === el.dataset.id); if (t) { t.parteFeita = hoje(); logar('tarefas'); } }, { desfazivel: true });
+    aviso('Parte de hoje feita. Amanhã ela volta.', { desfazer: true }); redesenhar();
+  },
   abrirLinks(el) { const id = el.dataset.id; if (linksAbertos.has(id)) linksAbertos.delete(id); else linksAbertos.add(id); redesenhar(); },
   outraOpcao() { opcaoIdx++; mostrarOpcao(); },
   comecarFoco() { const o = opcoes[opcaoIdx % opcoes.length]; janela.close(); iniciarFoco(o.texto, o.tarefaId); },
@@ -2145,7 +2173,11 @@ document.addEventListener('change', (e) => {
     set((s) => { s.ajustes.pomodoro[el.dataset.pomo] = Math.max(1, Number(el.value) || 1); });
   } else if (el.dataset.muda) {
     const form = el.closest('form');
-    if (el.dataset.muda === 'quando') $('[data-mostra="quando-data"]', form).hidden = el.value !== 'data';
+    if (el.dataset.muda === 'quando') {
+      $('[data-mostra="quando-data"]', form).hidden = !['data', 'ate'].includes(el.value);
+      $('[data-mostra="quando-hora"]', form).hidden = el.value === 'ate';
+      $$('[data-mostra="quando-ate"], [data-mostra="quando-ate-dica"]', form).forEach((x) => { x.hidden = el.value !== 'ate'; });
+    }
     if (el.dataset.muda === 'repetir') ['semana', 'mes', 'ano'].forEach((k) => { $(`[data-mostra="rep-${k}"]`, form).hidden = el.value !== k; });
   }
 });

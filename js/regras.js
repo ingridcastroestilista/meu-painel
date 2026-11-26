@@ -63,15 +63,19 @@ export const naCaixa = (t) => aberta(t) && !t.classificada;
 export function vencimento(t) {
   if (t.quando === 'data' && t.data) return t.data;
   if (t.quando === 'semana' && t.semanaFim) return t.semanaFim;
+  if (t.quando === 'ate' && t.data) return t.data;
   return null;
 }
+// "Até o dia": tarefa com prazo, que aparece todo dia no Hoje até ser feita (some no dia em que a parte de hoje foi feita).
+export const comPrazo = (t) => t.quando === 'ate' && !!t.data;
+export const faltamDias = (t, hoje) => (comPrazo(t) ? diasEntre(hoje, t.data) : null);
 
 // Para hoje: com data de hoje, atrasadas e "esta semana" no domingo (ou vencidas).
 export function paraHoje(tarefas, hoje, listas) {
   const pri = (t) => (listas ? ordemPrioridade(listas, t.prioridade) : 0);
   // Compromissos com horário de hoje vêm primeiro, na ordem do relógio; depois as outras, por prioridade.
   const hora = (t) => (t.hora && vencimento(t) === hoje ? t.hora : '');
-  return tarefas.filter((t) => aberta(t) && t.classificada && vencimento(t) && vencimento(t) <= hoje)
+  return tarefas.filter((t) => aberta(t) && t.classificada && vencimento(t) && (vencimento(t) <= hoje || (comPrazo(t) && t.parteFeita !== hoje)))
     .sort((a, b) => {
       const ha = hora(a); const hb = hora(b);
       if (ha && hb) return ha.localeCompare(hb);
@@ -95,7 +99,7 @@ export function proximosDias(tarefas, hoje) {
 export function proximasDaSemana(tarefas, hoje, listas) {
   const dom = somaDias(segunda(hoje), 6);
   const pri = (t) => (listas ? ordemPrioridade(listas, t.prioridade) : 0);
-  return tarefas.filter((t) => aberta(t) && t.classificada && vencimento(t) && vencimento(t) > hoje && vencimento(t) <= dom)
+  return tarefas.filter((t) => aberta(t) && t.classificada && !comPrazo(t) && vencimento(t) && vencimento(t) > hoje && vencimento(t) <= dom)
     .sort((a, b) => vencimento(a).localeCompare(vencimento(b)) || pri(a) - pri(b));
 }
 export function ordemPrioridade(listas, id) { const i = listas.prioridades.findIndex((p) => p.id === id); return i < 0 ? 99 : i; }
@@ -127,7 +131,7 @@ export function concluir(t, hoje) {
 // "Passar para amanhã": move as de hoje/atrasadas que não se repetem.
 export function passarParaAmanha(tarefas, hoje) {
   const amanha = somaDias(hoje, 1);
-  return tarefas.map((t) => (aberta(t) && t.classificada && !t.repetir && vencimento(t) && vencimento(t) <= hoje)
+  return tarefas.map((t) => (aberta(t) && t.classificada && !t.repetir && !comPrazo(t) && vencimento(t) && vencimento(t) <= hoje)
     ? { ...t, quando: 'data', data: amanha, semanaFim: null } : t);
 }
 
@@ -140,6 +144,7 @@ export function eventosDoDia(estado, dia, hoje) {
     const naData = t.quando === 'data' && t.data === dia;
     const repete = t.repetir && dia > (t.data || hoje) && repeteEm(t.repetir, dia);
     if (naData || repete) r.push({ tipo: 'tarefa', id: t.id, texto: t.texto, hora: t.hora || '' });
+    else if (comPrazo(t) && t.data === dia) r.push({ tipo: 'tarefa', id: t.id, texto: `Prazo: ${t.texto}`, hora: '' });
   });
   (estado.posts || []).forEach((p) => { if (p.data === dia) r.push({ tipo: 'post', id: p.id, texto: p.titulo || 'Post sem título', feito: p.situacao === 'postado' }); });
   ((estado.clube || {}).encontros || []).forEach((e) => { if (e.data === dia) r.push({ tipo: 'clube', id: e.id, texto: 'Encontro do Clube do Livro', hora: e.hora || '' }); });
@@ -188,7 +193,7 @@ export function opcoesComecar(tarefas, listas, aquecimentos, hoje) {
 export function mostrarAvisoFimDoDia(tarefas, hoje, horaAtual, horario, dispensadoEm) {
   if (dispensadoEm === hoje) return false;
   if (horaAtual < horario) return false;
-  return paraHoje(tarefas, hoje).length > 0;
+  return paraHoje(tarefas, hoje).filter((t) => !comPrazo(t) || t.data <= hoje).length > 0; // prazo longe não cobra no fim do dia
 }
 
 // ---------- Aulas ----------
@@ -410,4 +415,17 @@ export function resumoSemana(log, hoje) {
     Object.keys(r).forEach((k) => { r[k] += x[k] || 0; });
   }
   return r;
+}
+
+// ---------- Meta de leitura do clube (no Hoje) ----------
+// inicio = página em que ela estava no começo do dia. Divide o que falta até o encontro pelos dias que sobram.
+export function metaLeituraHoje(livro, encontro, hoje, inicio) {
+  if (!livro || !encontro || !encontro.atePagina || !encontro.data || encontro.data < hoje) return null;
+  const de = Number(inicio ?? livro.paginaAtual ?? 0) || 0;
+  const ate = Number(encontro.atePagina);
+  if (de >= ate) return null;
+  const dias = Math.max(1, diasEntre(hoje, encontro.data));
+  const paginasHoje = Math.ceil((ate - de) / dias);
+  const alvo = Math.min(ate, de + paginasHoje);
+  return { alvo, paginasHoje, feita: (Number(livro.paginaAtual) || 0) >= alvo, dias };
 }

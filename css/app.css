@@ -501,3 +501,6 @@ img.sem-imagem { min-height: 60px; }
 .resumo-itens div { display: grid; }
 .resumo-itens b { font-family: var(--serif); font-size: 28px; font-weight: 500; color: var(--verde); line-height: 1.1; }
 .resumo-itens span { font-size: 13px; color: var(--texto-2); }
+
+/* Tarefa com prazo: parte de hoje */
+.parte-hoje .link-acao { font-size: 12.5px; }
