@@ -504,3 +504,10 @@ img.sem-imagem { min-height: 60px; }
 
 /* Tarefa com prazo: parte de hoje */
 .parte-hoje .link-acao { font-size: 12.5px; }
+
+/* Livros lidos por ano */
+.ano-lidos + .ano-lidos { margin-top: 14px; }
+.ano-topo { display: flex; align-items: baseline; gap: 10px; background: none; border: 0; padding: 4px 0; margin-bottom: 10px; cursor: pointer; font: inherit; color: var(--texto); }
+.ano-topo b { font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.ano-topo .seta { font-size: 18px; color: var(--texto-2); transition: transform .15s; }
+.ano-lidos.aberto .ano-topo .seta { transform: rotate(90deg); }

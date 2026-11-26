@@ -1005,6 +1005,19 @@ function capa(l, grande = false) {
   return l.capa ? `<img class="capa ${grande ? 'grande' : ''}" src="${l.capa}" alt="">` : `<div class="capa ${grande ? 'grande' : ''}">${esc(l.nome)}</div>`;
 }
 let buscaLivro = '';
+const anosAbertos = new Set();
+// Lidos separados por ano (de término): o ano atual aberto, os outros fechados com o número de livros.
+function lidosPorAno(livros, estante) {
+  if (!livros.length) return estante(livros);
+  const anoAtual = hoje().slice(0, 4);
+  const grupos = new Map();
+  R.lidosRecentesPrimeiro(livros).forEach((l) => { const a = (l.fim || '').slice(0, 4) || 'sem'; if (!grupos.has(a)) grupos.set(a, []); grupos.get(a).push(l); });
+  return [...grupos.entries()].map(([ano, itens]) => {
+    const aberto = ano === anoAtual ? !anosAbertos.has(`-${ano}`) : anosAbertos.has(ano);
+    const chave = ano === anoAtual ? `-${ano}` : ano;
+    return `<div class="ano-lidos ${aberto ? 'aberto' : ''}"><button class="ano-topo" data-acao="abrirAno" data-ano="${chave}" aria-expanded="${aberto}"><b>${ano === 'sem' ? 'Sem data de término' : ano}</b><span class="muted">${itens.length} ${itens.length === 1 ? 'livro' : 'livros'}</span><span class="seta" aria-hidden="true">›</span></button>${aberto ? estante(itens) : ''}</div>`;
+  }).join('');
+}
 // Livro do clube escolhido no campo com busca (livro atual ou próximos).
 function escolherLivroClube(el) {
   if (!el.value.trim()) return;
@@ -1059,7 +1072,7 @@ function telaLeituras(aba = 'estante', encontroId = '') {
       <div class="barra"><i style="width:${R.progressoLivro(l)}%"></i></div><div class="muted" style="font-size:12.5px">${l.paginas ? `${R.progressoLivro(l)}% · página ${l.paginaAtual || 0} de ${l.paginas}` : 'Informe o total de páginas no livro'}</div>
       <form class="linha" data-form="pagina" data-id="${l.id}" style="margin-top:10px"><input class="campo" name="pagina" type="number" min="0" placeholder="Parei na página…" style="width:150px"><button class="btn btn-pequeno" type="submit">Atualizar</button></form></div></div>`).join('')}</div>` : '<p class="vazio">Nenhum livro em leitura.</p>'}
   </section>
-  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${estante(id === 'lido' ? R.lidosRecentesPrimeiro(porSit(id)) : porSit(id))}</section>`).join('')}`}`;
+  ${['proximo', 'naoiniciado', 'quero', 'lido', 'abandonado'].map((id) => `<section class="secao"><h2 style="margin-bottom:12px">${esc(nomeDe(L().situacoesLivro, id))}</h2>${id === 'lido' ? lidosPorAno(porSit(id), estante) : estante(porSit(id))}</section>`).join('')}`}`;
 }
 let encontrosAbertos = false;
 // Página de um encontro do clube: data, até onde ler, pauta e como foi.
@@ -1731,6 +1744,7 @@ const acoes = {
   // Começar pequeno / foco
   comecar() { comecarPequeno(); },
   fazerAgora(el) { fazerAgora(el.dataset.id); },
+  abrirAno(el) { const a = el.dataset.ano; if (anosAbertos.has(a)) anosAbertos.delete(a); else anosAbertos.add(a); redesenhar(); },
   parteHoje(el) {
     S.mudar((s) => { const t = s.tarefas.find((x) => x.id === el.dataset.id); if (t) { t.parteFeita = hoje(); logar('tarefas'); } }, { desfazivel: true });
     aviso('Parte de hoje feita. Amanhã ela volta.', { desfazer: true }); redesenhar();
