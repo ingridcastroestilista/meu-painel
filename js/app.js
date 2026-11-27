@@ -141,19 +141,21 @@ function telaHoje() {
 
   // Linhas curtas
   const linhas = [];
-  R.postsDeHoje(s.posts, d).forEach((p) => linhas.push(`<div class="linha-hoje"><span class="rot">Post</span><span class="espaco">${esc(p.titulo)} ${p.formato ? `<span class="tag">${esc(nomeDe(L().formatos, p.formato))}</span>` : ''}</span><a href="#/post/${p.id}">Abrir roteiro</a></div>`));
+  const avisos = [];
+  if (s.ajustes.hojeLeitura !== false) { const ml = blocoLeituraHoje(d); if (ml) linhas.push(ml); }
+  R.postsDeHoje(s.posts, d).forEach((p) => avisos.push(`<div class="linha-hoje"><span class="rot">Post</span><span class="espaco">${esc(p.titulo)} ${p.formato ? `<span class="tag">${esc(nomeDe(L().formatos, p.formato))}</span>` : ''}</span><a href="#/post/${p.id}">Abrir roteiro</a></div>`));
   const ra = R.resumoAulas(s.aulas, L().etapasAula, d);
   const atrasAulas = R.aulasAtrasadas(s.aulas, L().etapasAula, d).length;
   if ((ra.total || atrasAulas) && s.ajustes.hojeAulas !== false) linhas.push(blocoAulasHoje(d, ra));
-  if (s.ajustes.hojeLeitura !== false) { const ml = blocoLeituraHoje(d); if (ml) linhas.push(ml); }
   const clube = R.avisoClube(s.clube.encontros, d);
   if (clube) {
     const enc = s.clube.encontros.find((e) => e.data === (clube === 'hoje' ? d : R.somaDias(d, 1)));
-    linhas.push(`<div class="linha-hoje"><span class="rot">Clube</span><span class="espaco">${clube === 'hoje' ? 'Clube hoje' : 'Clube amanhã'}${enc && enc.hora ? ` às ${esc(enc.hora)}` : ''}</span><a href="#/leituras/clube/${enc ? enc.id : ''}">Ver pauta</a></div>`);
+    avisos.push(`<div class="linha-hoje"><span class="rot">Clube</span><span class="espaco">${clube === 'hoje' ? 'Clube hoje' : 'Clube amanhã'}${enc && enc.hora ? ` às ${esc(enc.hora)}` : ''}</span><a href="#/leituras/clube/${enc ? enc.id : ''}">Ver pauta</a></div>`);
   }
-  if (R.mostrarFecharMes(s.meses, d) && s.contas.length) linhas.push(`<div class="linha-hoje"><span class="rot">Patrimônio</span><span class="espaco">Fechar o mês de ${R.nomeMes(R.mesDe(d))}</span><a href="#/fechar/${R.mesDe(d)}">Fechar</a></div>`);
+  if (R.mostrarFecharMes(s.meses, d) && s.contas.length) avisos.push(`<div class="linha-hoje"><span class="rot">Patrimônio</span><span class="espaco">Fechar o mês de ${R.nomeMes(R.mesDe(d))}</span><a href="#/fechar/${R.mesDe(d)}">Fechar</a></div>`);
   const ideia = blocoIdeiaDoDia();
   if (ideia) linhas.push(ideia);
+  linhas.push(...avisos);
   const proxSemana = s.ajustes.hojeSemana !== false ? blocoProximasSemana(d) : '';
   const resumo = s.ajustes.hojeResumo !== false ? blocoResumoSemana(d) : '';
 
@@ -179,12 +181,13 @@ function telaHoje() {
 
   <section class="cartao">
     <h2>Para hoje</h2>
-    ${lista.length ? `<ul class="tarefas">${lista.map((t) => itemTarefa(t, d)).join('')}</ul>` : `<p class="vazio">Tudo feito por hoje.${R.proximasDaSemana(s.tarefas, d, L()).length ? ' Quer adiantar uma da semana?' : ''}</p>`}
+    ${lista.length ? `<ul class="tarefas">${(hojeTodas ? lista : lista.slice(0, MAX_HOJE)).map((t) => itemTarefa(t, d)).join('')}</ul>
+      ${lista.length > MAX_HOJE ? `<button class="link-acao mais-hoje" data-acao="hojeTodas">${hojeTodas ? 'Mostrar só 3' : `Ver mais ${lista.length - MAX_HOJE} ${lista.length - MAX_HOJE === 1 ? 'tarefa' : 'tarefas'}`}</button>` : ''}` : `<p class="vazio">Tudo feito por hoje.${R.proximasDaSemana(s.tarefas, d, L()).length ? ' Quer adiantar uma da semana?' : ''}</p>`}
     ${feitasHoje.length ? `<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Feitas hoje (${feitasHoje.length})</summary><ul class="tarefas">${feitasHoje.map((t) => `<li class="tarefa feita"><button class="check feito" data-acao="reabrir" data-id="${t.id}" aria-label="Desfazer"></button><div class="txt"><span>${esc(t.texto)}</span></div></li>`).join('')}</ul></details>` : ''}
   </section>
 
   ${resumo}
-  ${linhas.length || proxSemana ? `<div class="linhas-hoje">${proxSemana}${linhas.join('')}</div>` : ''}
+  ${linhas.length || proxSemana ? `<div class="linhas-hoje">${linhas.join('')}${proxSemana}</div>` : ''}
 
   <footer class="rodape-hoje">
     ${vit ? `<span class="vitorias">Hoje você fez ${vit} ${vit === 1 ? 'coisa' : 'coisas'}</span>` : ''}
@@ -196,13 +199,19 @@ function telaHoje() {
   </div>${s.ajustes.hojeCalendario !== false ? `<aside class="hoje-lado">${blocoCalendario()}</aside>` : ''}</div>`;
 }
 
+// No Hoje aparecem só 3 tarefas por vez (quando uma é feita, a próxima entra).
+const MAX_HOJE = 3;
+let hojeTodas = false;
+
 // ---------- Meta de leitura do clube (no Hoje) ----------
 // Guarda em que página ela estava no começo do dia, para a meta não mudar enquanto lê.
 function blocoLeituraHoje(d) {
   const s = st();
-  const livro = s.livros.find((l) => l.id === s.clube.livroAtual);
   const enc = R.proximoEncontro(s.clube.encontros, d);
-  if (!livro || !enc) return '';
+  if (!enc) return '';
+  // o livro do próximo encontro; se o encontro não tiver livro, o livro atual do clube
+  const livro = s.livros.find((l) => l.id === (enc.livroId || s.clube.livroAtual));
+  if (!livro) return '';
   const ld = s.clube.leituraDia;
   if (!ld || ld.data !== d || ld.livroId !== livro.id) { s.clube.leituraDia = { data: d, livroId: livro.id, pagina: Number(livro.paginaAtual) || 0 }; S.salvar(); }
   const m = R.metaLeituraHoje(livro, enc, d, s.clube.leituraDia.pagina);
@@ -1561,8 +1570,8 @@ function telaProjeto(id) {
   const prontas = aulas.filter((a) => R.pronta(a, etapas)).length;
   const posts = s.posts.filter((x) => x.projeto === id && x.situacao !== 'postado');
   const links = s.links.filter((l) => l.projeto === id);
-  const livro = s.livros.find((l) => l.id === s.clube.livroAtual);
   const prox = R.proximoEncontro(s.clube.encontros, d);
+  const livro = s.livros.find((l) => l.id === ((prox && prox.livroId) || s.clube.livroAtual));
   const ritmo = R.ritmoClube(livro, prox, d);
   return `<div class="editor-topo"><a class="btn-3" href="#/projetos">← Projetos</a><span class="espaco"></span>
     <button class="btn btn-2 btn-pequeno" data-acao="arquivarProjeto" data-id="${p.id}">${p.arquivado ? 'Trazer de volta' : 'Arquivar'}</button><button class="btn btn-perigo btn-pequeno" data-acao="apagarProjeto" data-id="${p.id}">Apagar</button></div>
@@ -1790,6 +1799,7 @@ const acoes = {
   // Começar pequeno / foco
   comecar() { comecarPequeno(); },
   fazerAgora(el) { fazerAgora(el.dataset.id); },
+  hojeTodas() { hojeTodas = !hojeTodas; redesenhar(); },
   abrirAno(el) { const a = el.dataset.ano; if (anosAbertos.has(a)) anosAbertos.delete(a); else anosAbertos.add(a); redesenhar(); },
   parteHoje(el) {
     S.mudar((s) => { const t = s.tarefas.find((x) => x.id === el.dataset.id); if (t) { t.parteFeita = hoje(); logar('tarefas'); } }, { desfazivel: true });
